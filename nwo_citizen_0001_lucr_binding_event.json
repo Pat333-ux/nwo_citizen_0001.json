@@ -1,0 +1,18 @@
+{
+  "citizen_id": "NWO-0001",
+  "lucr_binding_event": {
+    "event_id": "BIND-0001",
+    "bound_at": "2026-09-24T15:34:00-04:00",
+    "wallet_address": "0x4C72f86eB259E0dF67A1F9546e10811CF79a824e",
+    "contract_address": "0x0000000000000000000000000000000000000000",
+    "binding_method": "metamask_signature",
+    "binding_state": "complete",
+    "deterministic_seed": "LUCR-BIND-0001"
+  },
+  "system_state": {
+    "lucr_ready": true,
+    "minting_enabled": true,
+    "reward_engine_synced": true,
+    "next_step": "lucr_minting_profile"
+  }
+}
