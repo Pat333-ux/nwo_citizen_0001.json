@@ -1,0 +1,20 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "service_eligibility_matrix",
+  "version": "1.0.0-alpha",
+  "eligibility": {
+    "wellbeing_services": true,
+    "assistance_programs": true,
+    "priority_tier": "standard"
+  },
+  "requirements": {
+    "stability_score_min": 0.5,
+    "lucr_balance_min": 50,
+    "governance_compliance": true
+  },
+  "routing": {
+    "auto_assign": true,
+    "manual_override": false
+  },
+  "status": "active"
+}
