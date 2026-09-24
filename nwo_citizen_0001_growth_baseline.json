@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "growth_baseline": {
+    "initialized_at": "2026-09-24T15:26:00-04:00",
+    "wellbeing_score": 0,
+    "civic_score": 0,
+    "productivity_score": 0,
+    "stability_score": 0,
+    "deterministic_seed": "GROWTH-SEED-0001"
+  },
+  "lucr_generation": {
+    "baseline_ready": true,
+    "growth_multiplier": 1.0,
+    "next_step": "growth_engine_activation"
+  }
+}
