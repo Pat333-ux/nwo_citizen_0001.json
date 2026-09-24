@@ -1,0 +1,22 @@
+{
+  "citizen_id": "NWO-0001",
+  "lucr_distribution_profile": {
+    "initialized_at": "2026-09-24T15:37:00-04:00",
+    "distribution_enabled": false,
+    "distribution_channels": {
+      "growth_rewards": 0,
+      "civic_rewards": 0,
+      "wellbeing_rewards": 0,
+      "productivity_rewards": 0,
+      "stability_rewards": 0
+    },
+    "queue_state": "empty",
+    "release_mode": "deterministic",
+    "deterministic_seed": "LUCR-DIST-0001"
+  },
+  "system_sync": {
+    "release_protocol_linked": true,
+    "minting_profile_linked": true,
+    "next_step": "lucr_flow_controller"
+  }
+}
