@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "activation_core",
+  "version": "1.0.0-alpha",
+  "initialization": {
+    "identity_binding_verified": false,
+    "lucr_stability_check": 0.0,
+    "governance_alignment": false
+  },
+  "activation": {
+    "ready": false,
+    "requires_multisig": true,
+    "anomaly_lockout": true
+  },
+  "status": "inactive"
+}
