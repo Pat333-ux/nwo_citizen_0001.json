@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "deterministic_compliance_chain",
+  "version": "1.0.0-alpha",
+  "compliance": {
+    "hashchain_records": [],
+    "lucr_stability_aligned": false,
+    "governance_chain_validated": false
+  },
+  "validation": {
+    "compliance_chain_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "non_compliant"
+}
