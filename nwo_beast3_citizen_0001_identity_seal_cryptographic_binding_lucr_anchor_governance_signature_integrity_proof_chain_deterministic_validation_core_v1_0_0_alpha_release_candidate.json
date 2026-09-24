@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "identity_seal",
+  "version": "1.0.0-alpha",
+  "anchors": {
+    "lucr_anchor_hash": "00000000000000000000000000000000",
+    "wallet_signature_hash": "00000000000000000000000000000000",
+    "governance_id_hash": "00000000000000000000000000000000"
+  },
+  "integrity": {
+    "proof_chain": [],
+    "validated": false
+  },
+  "status": "pending"
+}
