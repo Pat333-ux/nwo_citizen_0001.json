@@ -1,0 +1,17 @@
+{
+  "citizen_id": "NWO-0001",
+  "stability_scoring": {
+    "initialized_at": "2026-09-24T15:30:00-04:00",
+    "financial_stability": 0,
+    "environmental_stability": 0,
+    "emotional_stability": 0,
+    "structural_stability": 0,
+    "stability_index": 0,
+    "deterministic_seed": "STABILITY-SEED-0001"
+  },
+  "lucr_interaction": {
+    "stability_multiplier": 1.0,
+    "boost_ready": true,
+    "next_step": "reward_engine_initialization"
+  }
+}
