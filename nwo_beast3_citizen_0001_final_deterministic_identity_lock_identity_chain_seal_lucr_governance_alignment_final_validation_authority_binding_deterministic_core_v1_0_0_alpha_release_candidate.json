@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "final_deterministic_identity_lock",
+  "version": "1.0.0-alpha",
+  "identity_lock": {
+    "identity_chain_sealed": false,
+    "lucr_governance_aligned": false,
+    "authority_binding_finalized": false
+  },
+  "validation": {
+    "final_identity_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "identity_unlocked"
+}
