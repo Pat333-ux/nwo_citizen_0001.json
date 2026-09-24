@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "activation_certificate",
+  "version": "1.0.0-alpha",
+  "certificate": {
+    "identity_proofchain": "00000000000000000000000000000000",
+    "lucr_stability_attestation": false,
+    "governance_alignment_verified": false
+  },
+  "verification": {
+    "timestamp": null,
+    "multisig_required": true,
+    "anomaly_lockout": true
+  },
+  "status": "unverified"
+}
