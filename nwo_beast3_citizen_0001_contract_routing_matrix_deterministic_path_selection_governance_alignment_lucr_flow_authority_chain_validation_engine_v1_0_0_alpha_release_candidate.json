@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "contract_routing_matrix",
+  "version": "1.0.0-alpha",
+  "routing": {
+    "default_path": "governance_standard",
+    "fallback_path": "stability_review",
+    "anomaly_path": "emergency_protocols"
+  },
+  "validation": {
+    "lucr_flow_check": true,
+    "authority_chain_verified": true
+  },
+  "status": "active"
+}
