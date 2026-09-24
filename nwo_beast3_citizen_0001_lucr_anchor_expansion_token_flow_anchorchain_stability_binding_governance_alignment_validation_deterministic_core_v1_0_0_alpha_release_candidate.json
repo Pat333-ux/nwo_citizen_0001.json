@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "lucr_anchor_expansion",
+  "version": "1.0.0-alpha",
+  "anchor": {
+    "anchorchain_hash": "00000000000000000000000000000000",
+    "stability_binding_level": 0.0,
+    "governance_alignment": false
+  },
+  "lucr_flow": {
+    "min_anchor_strength": 0.5,
+    "max_variance": 0.1,
+    "anomaly_lockout": true
+  },
+  "status": "unanchored"
+}
