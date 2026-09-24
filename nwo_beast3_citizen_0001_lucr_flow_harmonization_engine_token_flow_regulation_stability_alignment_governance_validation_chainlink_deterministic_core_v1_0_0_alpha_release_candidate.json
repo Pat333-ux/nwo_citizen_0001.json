@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "lucr_flow_harmonization_engine",
+  "version": "1.0.0-alpha",
+  "harmonization": {
+    "flow_regulation_level": 0.0,
+    "stability_alignment": false,
+    "governance_validation": false
+  },
+  "continuity": {
+    "chainlink_verified": false,
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "unharmonized"
+}
