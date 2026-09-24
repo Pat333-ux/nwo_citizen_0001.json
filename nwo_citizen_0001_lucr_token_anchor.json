@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "lucr_token_anchor": {
+    "initialized_at": "2026-09-24T15:32:00-04:00",
+    "token_symbol": "LUCR",
+    "anchor_state": "pending_contract_binding",
+    "wallet_address": "0x4C72f86eB259E0dF67A1F9546e10811CF79a824e",
+    "contract_address": "unassigned",
+    "deterministic_seed": "LUCR-ANCHOR-0001"
+  },
+  "generation_state": {
+    "mint_ready": false,
+    "reward_engine_linked": false,
+    "next_step": "lucr_contract_assignment"
+  }
+}
