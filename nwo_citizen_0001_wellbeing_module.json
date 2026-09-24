@@ -1,0 +1,17 @@
+{
+  "citizen_id": "NWO-0001",
+  "wellbeing_module": {
+    "initialized_at": "2026-09-24T15:27:00-04:00",
+    "physical_health": 0,
+    "mental_health": 0,
+    "environmental_stability": 0,
+    "social_support": 0,
+    "wellbeing_index": 0,
+    "deterministic_seed": "WELLBEING-SEED-0001"
+  },
+  "lucr_interaction": {
+    "wellbeing_multiplier": 1.0,
+    "boost_ready": true,
+    "next_step": "civic_participation_module"
+  }
+}
