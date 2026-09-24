@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "operational_readiness_certificate",
+  "version": "1.0.0-alpha",
+  "readiness": {
+    "activation_threshold": 0.0,
+    "lucr_stability_requirement_met": false,
+    "governance_alignment_verified": false
+  },
+  "validation": {
+    "readiness_proof_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "not_ready"
+}
