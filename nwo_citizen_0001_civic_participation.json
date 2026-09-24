@@ -1,0 +1,17 @@
+{
+  "citizen_id": "NWO-0001",
+  "civic_participation": {
+    "initialized_at": "2026-09-24T15:28:00-04:00",
+    "community_engagement": 0,
+    "dao_involvement": 0,
+    "task_completion": 0,
+    "public_contribution": 0,
+    "civic_index": 0,
+    "deterministic_seed": "CIVIC-SEED-0001"
+  },
+  "lucr_interaction": {
+    "civic_multiplier": 1.0,
+    "boost_ready": true,
+    "next_step": "productivity_engine_module"
+  }
+}
