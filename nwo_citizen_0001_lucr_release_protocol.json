@@ -1,0 +1,22 @@
+{
+  "citizen_id": "NWO-0001",
+  "lucr_release_protocol": {
+    "initialized_at": "2026-09-24T15:36:00-04:00",
+    "release_enabled": false,
+    "unlock_conditions": {
+      "growth_threshold": 10,
+      "wellbeing_threshold": 5,
+      "civic_threshold": 5,
+      "productivity_threshold": 5,
+      "stability_threshold": 5
+    },
+    "release_method": "deterministic_engine",
+    "release_state": "locked",
+    "deterministic_seed": "LUCR-RELEASE-0001"
+  },
+  "system_sync": {
+    "reward_engine_linked": true,
+    "minting_profile_synced": true,
+    "next_step": "lucr_distribution_profile"
+  }
+}
