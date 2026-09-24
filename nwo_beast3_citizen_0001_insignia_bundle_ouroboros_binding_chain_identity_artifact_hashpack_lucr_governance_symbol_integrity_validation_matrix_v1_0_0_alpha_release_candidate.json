@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "insignia_bundle",
+  "version": "1.0.0-alpha",
+  "insignia": {
+    "ouroboros_primary": "hash_00000000000000000000000000000000",
+    "lucr_anchor_insignia": "hash_11111111111111111111111111111111",
+    "governance_emblem": "hash_22222222222222222222222222222222",
+    "wellbeing_seal": "hash_33333333333333333333333333333333"
+  },
+  "integrity": {
+    "validated": false,
+    "artifact_chain": []
+  },
+  "status": "pending"
+}
