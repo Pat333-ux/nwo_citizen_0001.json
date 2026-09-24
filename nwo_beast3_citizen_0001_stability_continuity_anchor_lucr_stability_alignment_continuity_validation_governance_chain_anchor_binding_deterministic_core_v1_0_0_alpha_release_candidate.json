@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "stability_continuity_anchor",
+  "version": "1.0.0-alpha",
+  "anchor": {
+    "lucr_stability_aligned": false,
+    "continuity_verified": false,
+    "governance_chain_bound": false
+  },
+  "validation": {
+    "anchor_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "anchor_unset"
+}
