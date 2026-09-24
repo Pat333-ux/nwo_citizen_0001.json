@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "deterministic_identity_chain",
+  "version": "1.0.0-alpha",
+  "identity_chain": {
+    "root_hash": "00000000000000000000000000000000",
+    "continuity_index": 0,
+    "governance_alignment": false
+  },
+  "validation": {
+    "lucr_stability_linked": false,
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "unbound"
+}
