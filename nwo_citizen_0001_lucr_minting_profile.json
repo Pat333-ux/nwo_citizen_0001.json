@@ -1,0 +1,20 @@
+{
+  "citizen_id": "NWO-0001",
+  "lucr_minting_profile": {
+    "initialized_at": "2026-09-24T15:35:00-04:00",
+    "minting_enabled": true,
+    "base_mint_rate": 1,
+    "max_mint_rate": 10,
+    "growth_multiplier": 1.0,
+    "civic_multiplier": 1.0,
+    "wellbeing_multiplier": 1.0,
+    "productivity_multiplier": 1.0,
+    "stability_multiplier": 1.0,
+    "deterministic_seed": "LUCR-MINT-0001"
+  },
+  "reward_sync": {
+    "synced_with_reward_engine": true,
+    "release_state": "pending_growth_update",
+    "next_step": "lucr_release_protocol"
+  }
+}
