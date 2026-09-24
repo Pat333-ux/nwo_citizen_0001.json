@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "operational_stability_matrix",
+  "version": "1.0.0-alpha",
+  "metrics": {
+    "stability_score": 0.72,
+    "lucr_flow_consistency": 0.9,
+    "behavior_signal_strength": 0.65
+  },
+  "thresholds": {
+    "min_stability": 0.6,
+    "min_signal_strength": 0.5
+  },
+  "status": "active"
+}
