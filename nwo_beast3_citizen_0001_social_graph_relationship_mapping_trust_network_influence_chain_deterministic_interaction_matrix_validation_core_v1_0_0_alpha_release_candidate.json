@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "social_graph",
+  "version": "1.0.0-alpha",
+  "relationships": {
+    "trusted": [],
+    "neutral": [],
+    "restricted": []
+  },
+  "metrics": {
+    "trust_network_score": 0.5,
+    "influence_chain_depth": 0
+  },
+  "status": "active"
+}
