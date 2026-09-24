@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "lucr_release_protocol_expanded",
+  "version": "1.0.0-alpha",
+  "release_rules": {
+    "max_daily_release": 500,
+    "requires_governance_approval": false,
+    "stability_threshold": 0.6
+  },
+  "authorization_chain": {
+    "lucr_integrity_validator": true,
+    "flow_controller": true
+  },
+  "status": "active"
+}
