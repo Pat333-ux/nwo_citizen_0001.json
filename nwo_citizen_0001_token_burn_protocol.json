@@ -1,0 +1,27 @@
+{
+  "citizen_id": "NWO-0001",
+  "token_burn_protocol": {
+    "initialized_at": "2026-09-24T15:48:00-04:00",
+    "burn_state": "disabled",
+    "burn_rules": {
+      "manual_burn_allowed": false,
+      "auto_burn_on_anomaly": true,
+      "max_burn_per_event": 10,
+      "min_burn_per_event": 1
+    },
+    "burn_conditions": {
+      "stability_drop_detected": true,
+      "integrity_validator_trigger": true,
+      "security_enforcement_override": false
+    },
+    "burn_flags": [],
+    "deterministic_seed": "TOKEN-BURN-0001"
+  },
+  "system_sync": {
+    "token_spending_rules_linked": true,
+    "wallet_multisig_controller_linked": true,
+    "security_enforcement_linked": true,
+    "integrity_validator_linked": true,
+    "next_step": "token_freeze_protocol"
+  }
+}
