@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "wallet_multisig_expansion",
+  "version": "1.0.0-alpha",
+  "multisig": {
+    "required_signatures": 2,
+    "authorized_signers": [],
+    "threshold_validation": true
+  },
+  "authority_chain": {
+    "governance_alignment": true,
+    "lucr_integrity_check": true
+  },
+  "status": "active"
+}
