@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "contract_ready_profile",
+  "version": "1.0.0-alpha",
+  "readiness": {
+    "execution_capability_score": 0.0,
+    "lucr_stability_requirement_met": false,
+    "governance_alignment_verified": false
+  },
+  "eligibility": {
+    "contract_access": false,
+    "multisig_required": true,
+    "anomaly_lockout": true
+  },
+  "status": "not_ready"
+}
