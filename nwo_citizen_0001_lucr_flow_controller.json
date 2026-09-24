@@ -1,0 +1,25 @@
+{
+  "citizen_id": "NWO-0001",
+  "lucr_flow_controller": {
+    "initialized_at": "2026-09-24T15:38:00-04:00",
+    "flow_enabled": false,
+    "current_state": "idle",
+    "flow_channels": {
+      "mint_to_release": 0,
+      "release_to_distribution": 0,
+      "distribution_to_rewards": 0
+    },
+    "flow_rules": {
+      "max_flow_rate": 10,
+      "min_flow_rate": 1,
+      "stability_required": true
+    },
+    "deterministic_seed": "LUCR-FLOW-0001"
+  },
+  "system_sync": {
+    "distribution_profile_linked": true,
+    "release_protocol_linked": true,
+    "minting_profile_linked": true,
+    "next_step": "lucr_balance_monitor"
+  }
+}
