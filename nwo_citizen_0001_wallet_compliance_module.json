@@ -1,0 +1,26 @@
+{
+  "citizen_id": "NWO-0001",
+  "wallet_compliance_module": {
+    "initialized_at": "2026-09-24T15:43:00-04:00",
+    "compliance_state": "unverified",
+    "jurisdiction_rules": {
+      "kyc_required": true,
+      "residency_check": true,
+      "identity_verification": true,
+      "behavioral_compliance": true
+    },
+    "eligibility_requirements": {
+      "no_active_anomalies": true,
+      "security_layer_verified": true,
+      "integrity_validator_passed": true
+    },
+    "compliance_flags": [],
+    "deterministic_seed": "WALLET-COMPLIANCE-0001"
+  },
+  "system_sync": {
+    "operational_state_linked": true,
+    "security_enforcement_linked": true,
+    "integrity_validator_linked": true,
+    "next_step": "wallet_signature_verification_module"
+  }
+}
