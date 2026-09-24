@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "authority_chain_binding_layer",
+  "version": "1.0.0-alpha",
+  "authority_chain": {
+    "levels": [],
+    "binding_integrity": false,
+    "governance_alignment": false
+  },
+  "validation": {
+    "lucr_stability_linked": false,
+    "continuity_verified": false,
+    "anomaly_lockout": true
+  },
+  "status": "unbound"
+}
