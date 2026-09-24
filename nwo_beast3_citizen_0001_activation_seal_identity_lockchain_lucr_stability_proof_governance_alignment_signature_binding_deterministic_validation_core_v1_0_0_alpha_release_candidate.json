@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "activation_seal",
+  "version": "1.0.0-alpha",
+  "seal": {
+    "identity_lockchain_hash": "00000000000000000000000000000000",
+    "lucr_stability_proof": false,
+    "governance_signature_chain": []
+  },
+  "activation": {
+    "authorized": false,
+    "requires_multisig": true,
+    "anomaly_lockout": true
+  },
+  "status": "sealed"
+}
