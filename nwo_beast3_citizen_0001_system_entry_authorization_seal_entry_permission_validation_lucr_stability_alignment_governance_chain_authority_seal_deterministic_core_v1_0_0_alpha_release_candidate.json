@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "system_entry_authorization_seal",
+  "version": "1.0.0-alpha",
+  "authorization": {
+    "entry_permission": false,
+    "lucr_stability_verified": false,
+    "governance_chain_authorized": false
+  },
+  "validation": {
+    "authorization_seal_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "unauthorized"
+}
