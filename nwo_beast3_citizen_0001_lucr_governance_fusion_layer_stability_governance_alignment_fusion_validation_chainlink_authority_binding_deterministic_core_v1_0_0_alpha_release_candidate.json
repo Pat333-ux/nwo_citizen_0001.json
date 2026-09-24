@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "lucr_governance_fusion_layer",
+  "version": "1.0.0-alpha",
+  "fusion": {
+    "lucr_stability_fused": false,
+    "governance_alignment_fused": false,
+    "fusion_integrity": false
+  },
+  "validation": {
+    "fusion_chainlink_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "fusion_incomplete"
+}
