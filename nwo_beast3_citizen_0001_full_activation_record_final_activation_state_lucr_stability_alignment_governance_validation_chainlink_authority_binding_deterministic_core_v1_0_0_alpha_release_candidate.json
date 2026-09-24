@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "full_activation_record",
+  "version": "1.0.0-alpha",
+  "activation": {
+    "final_state": "inactive",
+    "lucr_stability_verified": false,
+    "governance_chain_validated": false
+  },
+  "continuity": {
+    "authority_binding_hash": "00000000000000000000000000000000",
+    "activation_chainlink_verified": false,
+    "anomaly_lockout": true
+  },
+  "status": "activation_unregistered"
+}
