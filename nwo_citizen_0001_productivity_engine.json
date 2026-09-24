@@ -1,0 +1,17 @@
+{
+  "citizen_id": "NWO-0001",
+  "productivity_engine": {
+    "initialized_at": "2026-09-24T15:29:00-04:00",
+    "task_efficiency": 0,
+    "output_rate": 0,
+    "skill_utilization": 0,
+    "consistency_score": 0,
+    "productivity_index": 0,
+    "deterministic_seed": "PRODUCTIVITY-SEED-0001"
+  },
+  "lucr_interaction": {
+    "productivity_multiplier": 1.0,
+    "boost_ready": true,
+    "next_step": "stability_scoring_module"
+  }
+}
