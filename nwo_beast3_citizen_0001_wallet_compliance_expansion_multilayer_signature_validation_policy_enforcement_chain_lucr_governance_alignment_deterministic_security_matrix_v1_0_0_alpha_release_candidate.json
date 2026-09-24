@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "wallet_compliance_expansion",
+  "version": "1.0.0-alpha",
+  "compliance_rules": {
+    "requires_multisig": true,
+    "max_daily_transactions": 25,
+    "lucr_spend_alignment": true
+  },
+  "signature_validation": {
+    "allowed_algorithms": ["secp256k1", "ed25519"],
+    "anomaly_detection": true
+  },
+  "status": "active"
+}
