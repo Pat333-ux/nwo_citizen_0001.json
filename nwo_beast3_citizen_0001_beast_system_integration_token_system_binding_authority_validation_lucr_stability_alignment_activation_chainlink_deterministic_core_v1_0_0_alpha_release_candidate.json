@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "beast_system_integration_token",
+  "version": "1.0.0-alpha",
+  "integration": {
+    "system_binding": false,
+    "lucr_stability_verified": false,
+    "governance_authority_validated": false
+  },
+  "activation": {
+    "chainlink_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "not_integrated"
+}
