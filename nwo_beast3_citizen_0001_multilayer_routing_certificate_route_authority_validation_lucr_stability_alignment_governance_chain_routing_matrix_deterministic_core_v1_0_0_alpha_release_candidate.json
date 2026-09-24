@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "multilayer_routing_certificate",
+  "version": "1.0.0-alpha",
+  "routing": {
+    "authorized_routes": [],
+    "lucr_stability_aligned": false,
+    "governance_chain_validated": false
+  },
+  "validation": {
+    "routing_certificate_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "routing_unverified"
+}
