@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "behavioral_ledger",
+  "version": "1.0.0-alpha",
+  "events": {
+    "infractions": [],
+    "positive_actions": [],
+    "anomalies": []
+  },
+  "metrics": {
+    "trust_score": 0.75,
+    "stability_influence": 0.0
+  },
+  "status": "active"
+}
