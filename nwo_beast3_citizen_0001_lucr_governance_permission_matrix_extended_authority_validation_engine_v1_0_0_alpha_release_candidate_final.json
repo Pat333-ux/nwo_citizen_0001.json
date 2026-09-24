@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "governance_permission_matrix",
+  "version": "1.0.0-alpha",
+  "permissions": {
+    "execute_contracts": true,
+    "requires_multisig": true,
+    "risk_tier": "medium"
+  },
+  "constraints": {
+    "lucr_min_balance": 100,
+    "stability_min": 0.6,
+    "daily_spend_limit": 1000
+  },
+  "status": "active"
+}
