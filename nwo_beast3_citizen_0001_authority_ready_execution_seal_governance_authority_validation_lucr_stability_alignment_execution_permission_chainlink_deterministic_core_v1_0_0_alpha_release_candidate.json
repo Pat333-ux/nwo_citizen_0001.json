@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "authority_ready_execution_seal",
+  "version": "1.0.0-alpha",
+  "execution": {
+    "authority_validated": false,
+    "lucr_stability_aligned": false,
+    "execution_permission": false
+  },
+  "validation": {
+    "execution_chainlink_hash": "00000000000000000000000000000000",
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "execution_unapproved"
+}
