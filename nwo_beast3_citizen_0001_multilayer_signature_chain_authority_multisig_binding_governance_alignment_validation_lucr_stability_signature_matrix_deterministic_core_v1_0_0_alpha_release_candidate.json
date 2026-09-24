@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "multilayer_signature_chain",
+  "version": "1.0.0-alpha",
+  "signature_chain": {
+    "layers": [],
+    "authority_multisig_required": true,
+    "governance_alignment": false
+  },
+  "validation": {
+    "lucr_stability_signature": false,
+    "continuity_verified": false,
+    "anomaly_lockout": true
+  },
+  "status": "unsigned"
+}
