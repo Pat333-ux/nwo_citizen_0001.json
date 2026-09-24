@@ -1,0 +1,33 @@
+{
+  "citizen_id": "NWO-0001",
+  "wallet_multisig_controller": {
+    "initialized_at": "2026-09-24T15:46:00-04:00",
+    "multisig_state": "disabled",
+    "quorum_rules": {
+      "required_signatures": 2,
+      "max_signers": 5,
+      "min_signers": 1
+    },
+    "authorized_signers": [
+      {
+        "signer_id": "NWO-0001",
+        "role": "primary",
+        "active": true
+      }
+    ],
+    "multisig_features": {
+      "transaction_lock_until_quorum": true,
+      "anomaly_freeze": true,
+      "signature_timestamp_validation": true
+    },
+    "multisig_flags": [],
+    "deterministic_seed": "WALLET-MULTISIG-0001"
+  },
+  "system_sync": {
+    "wallet_recovery_protocol_linked": true,
+    "wallet_signature_verification_linked": true,
+    "wallet_compliance_linked": true,
+    "security_enforcement_linked": true,
+    "next_step": "token_spending_rules"
+  }
+}
