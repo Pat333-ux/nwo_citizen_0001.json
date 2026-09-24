@@ -1,0 +1,19 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "emergency_protocols",
+  "version": "1.0.0-alpha",
+  "triggers": {
+    "lucr_flow_interrupt": true,
+    "contract_freeze": true,
+    "contract_burn": false
+  },
+  "override": {
+    "requires_governance_approval": true,
+    "multisig_required": true
+  },
+  "anomaly_response": {
+    "threshold": 0.85,
+    "auto_engage": true
+  },
+  "status": "armed"
+}
