@@ -1,0 +1,20 @@
+{
+  "citizen_id": "NWO-0001",
+  "activation_event": {
+    "event_id": "ACT-0001",
+    "wallet_verified": true,
+    "signature_method": "metamask",
+    "signature_timestamp": "2026-09-24T15:25:00-04:00",
+    "contract_linkage_state": "ready_for_binding",
+    "lucr_generation_enabled": true
+  },
+  "system_state": {
+    "modules_initialized": [
+      "growth_engine",
+      "eligibility_engine",
+      "reward_engine"
+    ],
+    "deterministic_mode": true,
+    "activation_complete": true
+  }
+}
