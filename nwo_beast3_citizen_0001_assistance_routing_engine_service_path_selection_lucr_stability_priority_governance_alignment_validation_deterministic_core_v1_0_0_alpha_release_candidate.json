@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "assistance_routing_engine",
+  "version": "1.0.0-alpha",
+  "routing": {
+    "service_paths": [],
+    "lucr_priority_score": 0.0,
+    "governance_alignment": false
+  },
+  "eligibility": {
+    "verified": false,
+    "multisig_required": true,
+    "anomaly_lockout": true
+  },
+  "status": "routing_inactive"
+}
