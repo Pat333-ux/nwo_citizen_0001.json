@@ -1,0 +1,35 @@
+{
+  "citizen_id": "NWO-0001",
+  "token_spending_rules": {
+    "initialized_at": "2026-09-24T15:47:00-04:00",
+    "spending_state": "restricted",
+    "spending_limits": {
+      "daily_limit": 25,
+      "weekly_limit": 100,
+      "monthly_limit": 400
+    },
+    "spending_categories": {
+      "wellbeing": true,
+      "civic": true,
+      "growth": true,
+      "productivity": true,
+      "stability": true,
+      "external_markets": false
+    },
+    "behavioral_constraints": {
+      "no_anomaly_spending": true,
+      "security_verification_required": true,
+      "multisig_required_for_high_value": true
+    },
+    "spending_flags": [],
+    "deterministic_seed": "TOKEN-SPEND-0001"
+  },
+  "system_sync": {
+    "wallet_multisig_controller_linked": true,
+    "wallet_recovery_protocol_linked": true,
+    "wallet_signature_verification_linked": true,
+    "wallet_compliance_linked": true,
+    "security_enforcement_linked": true,
+    "next_step": "token_burn_protocol"
+  }
+}
