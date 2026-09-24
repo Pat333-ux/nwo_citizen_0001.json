@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "governance_alignment_matrix",
+  "version": "1.0.0-alpha",
+  "alignment": {
+    "policy_binding_score": 0.0,
+    "authority_chain_verified": false,
+    "lucr_stability_compliant": false
+  },
+  "validation": {
+    "requires_multisig": true,
+    "anomaly_lockout": true,
+    "last_review_timestamp": null
+  },
+  "status": "unaligned"
+}
