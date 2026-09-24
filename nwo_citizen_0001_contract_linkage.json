@@ -1,0 +1,15 @@
+{
+  "citizen_id": "NWO-0001",
+  "contract_linkage": {
+    "wallet_address": "0x4C72f86eB259E0dF67A1F9546e10811CF79a824e",
+    "lucr_contract": "pending_assignment",
+    "link_method": "metamask_signature",
+    "link_state": "awaiting_signature",
+    "initiated_at": "2026-09-24T15:24:00-04:00"
+  },
+  "activation": {
+    "deterministic_mode": true,
+    "lucr_generation_ready": false,
+    "next_step": "citizen_signature_required"
+  }
+}
