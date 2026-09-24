@@ -1,0 +1,16 @@
+{
+  "citizen_id": "NWO-0001",
+  "module": "health_wellbeing_eligibility_core",
+  "version": "1.0.0-alpha",
+  "eligibility": {
+    "healthchain_binding": "00000000000000000000000000000000",
+    "wellbeing_access_level": 0,
+    "governance_alignment": false
+  },
+  "validation": {
+    "lucr_stability_required": true,
+    "anomaly_lockout": true,
+    "multisig_required": true
+  },
+  "status": "ineligible"
+}
