@@ -1,0 +1,10 @@
+{
+  "citizen_id": "nwo-citizen0001",
+  "citizen_name": "Pat Tarwater Jr",
+  "progress_code": "SU-IT-PROGRESS-0009",
+  "target_institution": "South University",
+  "target_program": "Bachelor of Science in Information Technology",
+  "description": "This file defines the academic progress tracking structure for citizen nwo-citizen0001, Pat Tarwater Jr, as part of the Information Technology program at South University. It is designed for integration into Beast System 3.0 as a deterministic artifact that records academic milestones, course completions, GPA updates, advisor interactions, and long-term progression toward graduation. No sensitive personal identifiers are stored within this file, ensuring compliance and security.\n\nThe progress tracking structure includes the following phases: Phase 1: Term Initialization, documenting the start of each academic term, enrolled courses, and expected workload. Phase 2: Course-Level Tracking, providing fields for assignment completion, exam performance, project submissions, and instructor feedback. Phase 3: Skill Integration Mapping, linking completed coursework to Beast System 3.0 development goals, DAO governance needs, and organizational leadership competencies. Phase 4: Advisor Interaction Logging, recording advising sessions, recommendations, academic adjustments, and long-term planning updates. Phase 5: GPA and Performance Monitoring, documenting term GPA, cumulative GPA, academic standing, and any honors or recognitions. Phase 6: Milestone Completion, tracking major academic achievements such as foundational course completion, specialization progress, capstone preparation, and readiness for graduation.\n\nThis file serves as a canonical reference for Beast System 3.0 academic modules, ensuring that educational progression remains aligned with organizational growth, technical expansion, and long-term governance objectives. It does not automate academic tracking; instead, it provides a deterministic structure that the citizen manually updates to maintain accuracy and compliance.",
+  "status": "academic-progress-file-created",
+  "created_at": "2026-09-27T15:46:00-04:00"
+}
