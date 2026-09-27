@@ -1,0 +1,15 @@
+{
+  "citizen_id": "nwo-citizen0001",
+  "citizen_name": "Pat Tarwater Jr",
+  "target_institution": "South University",
+  "target_program": "Bachelor of Science in Information Technology",
+  "enrollment_intent_code": "SU-IT-ENROLL-0001",
+  "description": "This file represents the formal intent of citizen nwo-citizen0001, Pat Tarwater Jr, to enroll in the Information Technology program at South University. The strategic objective of this enrollment is to strengthen the technical leadership, infrastructure design, and governance capabilities required to scale New World Order DAO and Beast System 3.0. The Information Technology curriculum is expected to reinforce core competencies in software architecture, network systems, security, data management, and enterprise-level automation. These competencies directly support the deterministic multi-repository architecture that underpins Beast System 3.0, as well as the broader civic and governance engines operated by New World Order DAO.\n\nThrough this program, the citizen seeks to formalize and extend existing self-taught expertise in large-scale system design, Ethereum-based smart contract workflows, and multi-layer orchestration pipelines. The academic structure and credentialing provided by South University will be integrated into the organizational narrative and federal filings associated with New World Order DAO and New World Order Health & Wellbeing. This enrollment intent file is designed to be referenced by internal automation, governance modules, and documentation systems within Beast System 3.0, serving as a canonical record of the decision to pursue formal education in Information Technology as a strategic growth vector for the New World Order ecosystem.",
+  "status": "intent-created",
+  "created_at": "2026-09-27T15:38:00-04:00",
+  "notes": [
+    "This file does not perform real enrollment.",
+    "Actual application and financial aid must be completed on South University's official website.",
+    "Sensitive data (SSN, full financial details) must never be stored in Beast System 3.0."
+  ]
+}
