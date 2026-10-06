@@ -24,3 +24,5 @@ export interface Packet {
   instructions: string;
   autoFill: Record<string, unknown>;
 }
+
+export interface SignedPacket extends Packet { timestamp: string; signature: string }

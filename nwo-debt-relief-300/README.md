@@ -14,7 +14,7 @@ Run tests: `npm test` (Node 22.18+ / 24, runs TypeScript natively).
 Append an object to `data/programs.json` following `config/schema.json`. `eligibility.requirements` is human-readable; add machine-evaluable `eligibility.rules` (and optional `application.autoFill`) for the engine to auto-match — programs without rules are never auto-matched. Include `source_urls` (official agency pages, see `docs/federal-sources.md`) and `last_verified`.
 
 ## Beast System consumption
-`src/pipeline/beast-hook.ts#beastIntegration(packet)` returns `{anchorId, citizenId, payload, status: "ready-for-routing"}` for Beast System to route, log, and trigger municipal workflows.
+`processMember` signs each packet (SHA-256 over programId, memberId, autoFill, timestamp); `src/pipeline/beast-hook.ts#beastIntegration(packet)` returns a routing envelope `{envelopeId, signature, route, payload, status: "ready-for-routing"}`; `src/pipeline/log.ts` records events for Beast System to route, log, and trigger municipal workflows.
 
 ## Compliance and Verification
 
