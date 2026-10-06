@@ -16,8 +16,10 @@ Append an object to `data/programs.json` following `config/schema.json`. `eligib
 ## Beast System consumption
 `src/pipeline/beast-hook.ts#beastIntegration(packet)` returns `{anchorId, citizenId, payload, status: "ready-for-routing"}` for Beast System to route, log, and trigger municipal workflows.
 
-## Compliance notes
-Packets are prepared for the member's review; this system does not submit applications or make eligibility determinations on behalf of an agency. Handle PII (SSNs etc.) per applicable law; store only the minimum (e.g. last 4 digits). Program rules here are simplified screening criteria, not legal advice.
+## Compliance and Verification
 
-## Verification policy
-Every program must cite official `.gov` sources and a `last_verified` date; re-verify at least every 6 months and whenever an agency announces changes. Unverified programs must not be added.
+This repository provides structured information and automation logic for U.S. government debt-relief programs. It is not legal, financial, or tax advice. Program rules, eligibility criteria, and application procedures can change at any time. All program entries must include official source URLs and a `last_verified` date. Users and downstream systems must always verify program details directly with the relevant federal agency before acting on any generated application packet.
+
+Handle PII (SSNs etc.) per applicable law and store only the minimum (e.g. last 4 digits). Packets are prepared for member review; this system does not submit applications.
+
+Re-verify each program at least every 6 months and whenever an agency announces changes. Unverified programs must not be added.
