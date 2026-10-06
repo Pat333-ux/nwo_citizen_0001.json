@@ -1,24 +1,27 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "DebtReliefProgram",
+  "$id": "https://nwo.example.org/debt-relief-program.schema.json",
   "type": "object",
-  "required": ["id", "name", "category", "agency", "eligibility", "application", "source_urls", "last_verified"],
+  "required": ["id", "name", "agency", "debtType", "level", "description", "eligibility", "application", "source_urls", "last_verified"],
   "properties": {
     "id": { "type": "string" },
     "name": { "type": "string" },
-    "category": { "enum": ["student-loan", "tax", "sba", "mortgage", "utility", "medical", "emergency"] },
     "agency": { "type": "string" },
+    "debtType": { "type": "array", "items": { "type": "string" } },
+    "level": { "type": "string", "enum": ["federal", "state"] },
+    "description": { "type": "string" },
     "eligibility": {
       "type": "object",
       "required": ["requirements"],
       "properties": {
-        "requirements": {
+        "requirements": { "type": "array", "items": { "type": "string" }, "description": "Human-readable requirements" },
+        "rules": {
           "type": "array",
+          "description": "Optional machine-evaluable rules used by the engine. Programs without rules are never auto-matched.",
           "items": {
             "type": "object",
             "required": ["field", "op"],
             "properties": {
-              "field": { "type": "string", "description": "Dot path into the member profile" },
+              "field": { "type": "string" },
               "op": { "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "exists", "isTrue"] },
               "value": {}
             }
@@ -28,14 +31,14 @@
     },
     "application": {
       "type": "object",
-      "required": ["forms", "instructions", "autoFill"],
+      "required": ["forms", "instructions"],
       "properties": {
         "forms": { "type": "array", "items": { "type": "string" } },
-        "instructions": { "type": "array", "items": { "type": "string" } },
-        "autoFill": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Form field -> member profile dot path" }
+        "instructions": { "type": "string" },
+        "autoFill": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Optional: form field -> member profile dot path" }
       }
     },
-    "source_urls": { "type": "array", "minItems": 1, "items": { "type": "string", "format": "uri" } },
+    "source_urls": { "type": "array", "items": { "type": "string", "format": "uri" } },
     "last_verified": { "type": "string", "format": "date" }
   }
 }

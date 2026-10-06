@@ -1,96 +1,531 @@
 [
   {
-    "id": "SL-PSLF", "name": "Public Service Loan Forgiveness", "category": "student-loan", "agency": "U.S. Department of Education (StudentAid.gov)",
-    "eligibility": { "requirements": [
-      { "field": "studentLoans.directLoan", "op": "isTrue" },
-      { "field": "employment.publicServiceEmployer", "op": "isTrue" },
-      { "field": "studentLoans.qualifyingPayments", "op": "gte", "value": 120 } ] },
-    "application": { "forms": ["PSLF Form"], "instructions": ["Certify employment with a qualifying employer.", "Submit the PSLF form via the StudentAid.gov PSLF Help Tool."],
-      "autoFill": { "fullName": "name", "email": "contact.email", "employer": "employment.employerName" } },
-    "source_urls": ["https://studentaid.gov/manage-loans/forgiveness-cancellation/public-service"], "last_verified": "2026-01-01"
+    "id": "pslf",
+    "name": "Public Service Loan Forgiveness",
+    "agency": "Department of Education",
+    "debtType": [
+      "student-loan"
+    ],
+    "level": "federal",
+    "description": "Cancels remaining Direct Loan balance after 120 qualifying payments while working full-time for a qualifying public service employer.",
+    "eligibility": {
+      "requirements": [
+        "Direct Loans only or consolidated into Direct",
+        "120 qualifying monthly payments",
+        "Full-time employment at qualifying public service employer"
+      ],
+      "rules": [
+        {
+          "field": "studentLoans.directLoan",
+          "op": "isTrue"
+        },
+        {
+          "field": "employment.publicServiceEmployer",
+          "op": "isTrue"
+        },
+        {
+          "field": "studentLoans.qualifyingPayments",
+          "op": "gte",
+          "value": 120
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "PSLF Application",
+        "Employment Certification Form"
+      ],
+      "instructions": "Submit employment certification regularly and PSLF application after 120 qualifying payments.",
+      "autoFill": {
+        "fullName": "name",
+        "email": "contact.email",
+        "employer": "employment.employerName"
+      }
+    },
+    "source_urls": [
+      "https://studentaid.gov/pslf/"
+    ],
+    "last_verified": "2026-10-06"
   },
   {
-    "id": "SL-IDR", "name": "Income-Driven Repayment Plan Forgiveness", "category": "student-loan", "agency": "U.S. Department of Education (StudentAid.gov)",
-    "eligibility": { "requirements": [ { "field": "studentLoans.federal", "op": "isTrue" }, { "field": "studentLoans.yearsInRepayment", "op": "gte", "value": 20 } ] },
-    "application": { "forms": ["IDR Application"], "instructions": ["Apply for an income-driven plan at StudentAid.gov.", "Recertify income annually."],
-      "autoFill": { "fullName": "name", "email": "contact.email", "income": "income.annual" } },
-    "source_urls": ["https://studentaid.gov/manage-loans/repayment/plans/income-driven"], "last_verified": "2026-01-01"
+    "id": "sl-idr",
+    "name": "Income-Driven Repayment Plan Forgiveness",
+    "agency": "U.S. Department of Education (StudentAid.gov)",
+    "debtType": [
+      "student-loan"
+    ],
+    "level": "federal",
+    "description": "Income-Driven Repayment Plan Forgiveness (U.S. Department of Education (StudentAid.gov)).",
+    "eligibility": {
+      "requirements": [
+        "studentLoans.federal is true",
+        "studentLoans.yearsInRepayment >= 20"
+      ],
+      "rules": [
+        {
+          "field": "studentLoans.federal",
+          "op": "isTrue"
+        },
+        {
+          "field": "studentLoans.yearsInRepayment",
+          "op": "gte",
+          "value": 20
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "IDR Application"
+      ],
+      "instructions": "Apply for an income-driven plan at StudentAid.gov. Recertify income annually.",
+      "autoFill": {
+        "fullName": "name",
+        "email": "contact.email",
+        "income": "income.annual"
+      }
+    },
+    "source_urls": [
+      "https://studentaid.gov/manage-loans/repayment/plans/income-driven"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "SL-TPD", "name": "Total and Permanent Disability Discharge", "category": "student-loan", "agency": "U.S. Department of Education (StudentAid.gov)",
-    "eligibility": { "requirements": [ { "field": "studentLoans.federal", "op": "isTrue" }, { "field": "health.totalPermanentDisability", "op": "isTrue" } ] },
-    "application": { "forms": ["TPD Discharge Application"], "instructions": ["Obtain physician or SSA documentation.", "Submit the TPD application."],
-      "autoFill": { "fullName": "name", "email": "contact.email" } },
-    "source_urls": ["https://studentaid.gov/manage-loans/forgiveness-cancellation/disability-discharge"], "last_verified": "2026-01-01"
+    "id": "sl-tpd",
+    "name": "Total and Permanent Disability Discharge",
+    "agency": "U.S. Department of Education (StudentAid.gov)",
+    "debtType": [
+      "student-loan"
+    ],
+    "level": "federal",
+    "description": "Total and Permanent Disability Discharge (U.S. Department of Education (StudentAid.gov)).",
+    "eligibility": {
+      "requirements": [
+        "studentLoans.federal is true",
+        "health.totalPermanentDisability is true"
+      ],
+      "rules": [
+        {
+          "field": "studentLoans.federal",
+          "op": "isTrue"
+        },
+        {
+          "field": "health.totalPermanentDisability",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "TPD Discharge Application"
+      ],
+      "instructions": "Obtain physician or SSA documentation. Submit the TPD application.",
+      "autoFill": {
+        "fullName": "name",
+        "email": "contact.email"
+      }
+    },
+    "source_urls": [
+      "https://studentaid.gov/manage-loans/forgiveness-cancellation/disability-discharge"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "TAX-OIC", "name": "IRS Offer in Compromise", "category": "tax", "agency": "Internal Revenue Service",
-    "eligibility": { "requirements": [ { "field": "tax.owesIRS", "op": "isTrue" }, { "field": "tax.canPayInFull", "op": "neq", "value": true } ] },
-    "application": { "forms": ["Form 656", "Form 433-A (OIC)"], "instructions": ["Use the IRS Offer in Compromise Pre-Qualifier.", "Submit forms with the application fee or low-income waiver."],
-      "autoFill": { "fullName": "name", "ssn": "tax.ssnLast4", "balanceOwed": "tax.balanceOwed" } },
-    "source_urls": ["https://www.irs.gov/payments/offer-in-compromise"], "last_verified": "2026-01-01"
+    "id": "tax-oic",
+    "name": "IRS Offer in Compromise",
+    "agency": "Internal Revenue Service",
+    "debtType": [
+      "tax"
+    ],
+    "level": "federal",
+    "description": "IRS Offer in Compromise (Internal Revenue Service).",
+    "eligibility": {
+      "requirements": [
+        "tax.owesIRS is true",
+        "tax.canPayInFull != true"
+      ],
+      "rules": [
+        {
+          "field": "tax.owesIRS",
+          "op": "isTrue"
+        },
+        {
+          "field": "tax.canPayInFull",
+          "op": "neq",
+          "value": true
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "Form 656",
+        "Form 433-A (OIC)"
+      ],
+      "instructions": "Use the IRS Offer in Compromise Pre-Qualifier. Submit forms with the application fee or low-income waiver.",
+      "autoFill": {
+        "fullName": "name",
+        "ssn": "tax.ssnLast4",
+        "balanceOwed": "tax.balanceOwed"
+      }
+    },
+    "source_urls": [
+      "https://www.irs.gov/payments/offer-in-compromise"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "TAX-IA", "name": "IRS Installment Agreement", "category": "tax", "agency": "Internal Revenue Service",
-    "eligibility": { "requirements": [ { "field": "tax.owesIRS", "op": "isTrue" } ] },
-    "application": { "forms": ["Form 9465"], "instructions": ["Apply online at IRS.gov or submit Form 9465."],
-      "autoFill": { "fullName": "name", "ssn": "tax.ssnLast4", "balanceOwed": "tax.balanceOwed" } },
-    "source_urls": ["https://www.irs.gov/payments/payment-plans-installment-agreements"], "last_verified": "2026-01-01"
+    "id": "tax-ia",
+    "name": "IRS Installment Agreement",
+    "agency": "Internal Revenue Service",
+    "debtType": [
+      "tax"
+    ],
+    "level": "federal",
+    "description": "IRS Installment Agreement (Internal Revenue Service).",
+    "eligibility": {
+      "requirements": [
+        "tax.owesIRS is true"
+      ],
+      "rules": [
+        {
+          "field": "tax.owesIRS",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "Form 9465"
+      ],
+      "instructions": "Apply online at IRS.gov or submit Form 9465.",
+      "autoFill": {
+        "fullName": "name",
+        "ssn": "tax.ssnLast4",
+        "balanceOwed": "tax.balanceOwed"
+      }
+    },
+    "source_urls": [
+      "https://www.irs.gov/payments/payment-plans-installment-agreements"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "SBA-DISASTER", "name": "SBA Disaster Loan Assistance", "category": "sba", "agency": "U.S. Small Business Administration",
-    "eligibility": { "requirements": [ { "field": "disaster.declaredAreaAffected", "op": "isTrue" } ] },
-    "application": { "forms": ["SBA Form 5 (Disaster Loan Application)"], "instructions": ["Apply at disasterloanassistance.sba.gov."],
-      "autoFill": { "fullName": "name", "email": "contact.email", "address": "contact.address" } },
-    "source_urls": ["https://www.sba.gov/funding-programs/disaster-assistance"], "last_verified": "2026-01-01"
+    "id": "sba-disaster",
+    "name": "SBA Disaster Loan Assistance",
+    "agency": "U.S. Small Business Administration",
+    "debtType": [
+      "sba"
+    ],
+    "level": "federal",
+    "description": "SBA Disaster Loan Assistance (U.S. Small Business Administration).",
+    "eligibility": {
+      "requirements": [
+        "disaster.declaredAreaAffected is true"
+      ],
+      "rules": [
+        {
+          "field": "disaster.declaredAreaAffected",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "SBA Form 5 (Disaster Loan Application)"
+      ],
+      "instructions": "Apply at disasterloanassistance.sba.gov.",
+      "autoFill": {
+        "fullName": "name",
+        "email": "contact.email",
+        "address": "contact.address"
+      }
+    },
+    "source_urls": [
+      "https://www.sba.gov/funding-programs/disaster-assistance"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "SBA-HARDSHIP", "name": "SBA Hardship Accommodation", "category": "sba", "agency": "U.S. Small Business Administration",
-    "eligibility": { "requirements": [ { "field": "business.hasSBALoan", "op": "isTrue" }, { "field": "business.financialHardship", "op": "isTrue" } ] },
-    "application": { "forms": ["Hardship Accommodation Request"], "instructions": ["Contact the SBA loan servicer with hardship documentation."],
-      "autoFill": { "fullName": "name", "businessName": "business.name" } },
-    "source_urls": ["https://www.sba.gov/funding-programs/loans"], "last_verified": "2026-01-01"
+    "id": "sba-hardship",
+    "name": "SBA Hardship Accommodation",
+    "agency": "U.S. Small Business Administration",
+    "debtType": [
+      "sba"
+    ],
+    "level": "federal",
+    "description": "SBA Hardship Accommodation (U.S. Small Business Administration).",
+    "eligibility": {
+      "requirements": [
+        "business.hasSBALoan is true",
+        "business.financialHardship is true"
+      ],
+      "rules": [
+        {
+          "field": "business.hasSBALoan",
+          "op": "isTrue"
+        },
+        {
+          "field": "business.financialHardship",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "Hardship Accommodation Request"
+      ],
+      "instructions": "Contact the SBA loan servicer with hardship documentation.",
+      "autoFill": {
+        "fullName": "name",
+        "businessName": "business.name"
+      }
+    },
+    "source_urls": [
+      "https://www.sba.gov/funding-programs/loans"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "HUD-FHA-LOSS-MIT", "name": "FHA Loss Mitigation", "category": "mortgage", "agency": "U.S. Department of Housing and Urban Development",
-    "eligibility": { "requirements": [ { "field": "housing.loanType", "op": "eq", "value": "FHA" }, { "field": "housing.delinquent", "op": "isTrue" } ] },
-    "application": { "forms": ["Loss Mitigation Application"], "instructions": ["Contact your FHA loan servicer to request loss mitigation."],
-      "autoFill": { "fullName": "name", "propertyAddress": "housing.address" } },
-    "source_urls": ["https://www.hud.gov/stat/sfh/loss-mitigation"], "last_verified": "2026-01-01"
+    "id": "hud-fha-loss-mit",
+    "name": "FHA Loss Mitigation",
+    "agency": "U.S. Department of Housing and Urban Development",
+    "debtType": [
+      "mortgage"
+    ],
+    "level": "federal",
+    "description": "FHA Loss Mitigation (U.S. Department of Housing and Urban Development).",
+    "eligibility": {
+      "requirements": [
+        "housing.loanType = \"FHA\"",
+        "housing.delinquent is true"
+      ],
+      "rules": [
+        {
+          "field": "housing.loanType",
+          "op": "eq",
+          "value": "FHA"
+        },
+        {
+          "field": "housing.delinquent",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "Loss Mitigation Application"
+      ],
+      "instructions": "Contact your FHA loan servicer to request loss mitigation.",
+      "autoFill": {
+        "fullName": "name",
+        "propertyAddress": "housing.address"
+      }
+    },
+    "source_urls": [
+      "https://www.hud.gov/stat/sfh/loss-mitigation"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "VA-HOME-LOAN-HARDSHIP", "name": "VA Home Loan Servicing Assistance", "category": "mortgage", "agency": "U.S. Department of Veterans Affairs",
-    "eligibility": { "requirements": [ { "field": "veteran.status", "op": "isTrue" }, { "field": "housing.loanType", "op": "eq", "value": "VA" }, { "field": "housing.delinquent", "op": "isTrue" } ] },
-    "application": { "forms": ["Servicer Loss Mitigation Request"], "instructions": ["Contact your servicer; VA may assist via its loan technicians."],
-      "autoFill": { "fullName": "name", "propertyAddress": "housing.address" } },
-    "source_urls": ["https://www.va.gov/housing-assistance/home-loans/"], "last_verified": "2026-01-01"
+    "id": "va-home-loan-hardship",
+    "name": "VA Home Loan Servicing Assistance",
+    "agency": "U.S. Department of Veterans Affairs",
+    "debtType": [
+      "mortgage"
+    ],
+    "level": "federal",
+    "description": "VA Home Loan Servicing Assistance (U.S. Department of Veterans Affairs).",
+    "eligibility": {
+      "requirements": [
+        "veteran.status is true",
+        "housing.loanType = \"VA\"",
+        "housing.delinquent is true"
+      ],
+      "rules": [
+        {
+          "field": "veteran.status",
+          "op": "isTrue"
+        },
+        {
+          "field": "housing.loanType",
+          "op": "eq",
+          "value": "VA"
+        },
+        {
+          "field": "housing.delinquent",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "Servicer Loss Mitigation Request"
+      ],
+      "instructions": "Contact your servicer; VA may assist via its loan technicians.",
+      "autoFill": {
+        "fullName": "name",
+        "propertyAddress": "housing.address"
+      }
+    },
+    "source_urls": [
+      "https://www.va.gov/housing-assistance/home-loans/"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "USDA-RD-HARDSHIP", "name": "USDA Rural Development Mortgage Payment Assistance", "category": "mortgage", "agency": "U.S. Department of Agriculture",
-    "eligibility": { "requirements": [ { "field": "housing.loanType", "op": "eq", "value": "USDA" }, { "field": "housing.delinquent", "op": "isTrue" } ] },
-    "application": { "forms": ["Hardship Assistance Request"], "instructions": ["Contact your USDA Rural Development servicing office."],
-      "autoFill": { "fullName": "name", "propertyAddress": "housing.address" } },
-    "source_urls": ["https://www.rd.usda.gov/programs-services/single-family-housing-programs"], "last_verified": "2026-01-01"
+    "id": "usda-rd-hardship",
+    "name": "USDA Rural Development Mortgage Payment Assistance",
+    "agency": "U.S. Department of Agriculture",
+    "debtType": [
+      "mortgage"
+    ],
+    "level": "federal",
+    "description": "USDA Rural Development Mortgage Payment Assistance (U.S. Department of Agriculture).",
+    "eligibility": {
+      "requirements": [
+        "housing.loanType = \"USDA\"",
+        "housing.delinquent is true"
+      ],
+      "rules": [
+        {
+          "field": "housing.loanType",
+          "op": "eq",
+          "value": "USDA"
+        },
+        {
+          "field": "housing.delinquent",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "Hardship Assistance Request"
+      ],
+      "instructions": "Contact your USDA Rural Development servicing office.",
+      "autoFill": {
+        "fullName": "name",
+        "propertyAddress": "housing.address"
+      }
+    },
+    "source_urls": [
+      "https://www.rd.usda.gov/programs-services/single-family-housing-programs"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "LIHEAP", "name": "Low Income Home Energy Assistance Program", "category": "utility", "agency": "HHS Administration for Children and Families",
-    "eligibility": { "requirements": [ { "field": "household.incomePercentFPL", "op": "lte", "value": 150 } ] },
-    "application": { "forms": ["State LIHEAP Application"], "instructions": ["Apply through your state or local LIHEAP office."],
-      "autoFill": { "fullName": "name", "address": "contact.address", "householdSize": "household.size" } },
-    "source_urls": ["https://acf.gov/ocs/programs/liheap", "https://www.benefits.gov/benefit/623"], "last_verified": "2026-01-01"
+    "id": "liheap",
+    "name": "Low Income Home Energy Assistance Program",
+    "agency": "HHS Administration for Children and Families",
+    "debtType": [
+      "utility"
+    ],
+    "level": "federal",
+    "description": "Low Income Home Energy Assistance Program (HHS Administration for Children and Families).",
+    "eligibility": {
+      "requirements": [
+        "household.incomePercentFPL <= 150"
+      ],
+      "rules": [
+        {
+          "field": "household.incomePercentFPL",
+          "op": "lte",
+          "value": 150
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "State LIHEAP Application"
+      ],
+      "instructions": "Apply through your state or local LIHEAP office.",
+      "autoFill": {
+        "fullName": "name",
+        "address": "contact.address",
+        "householdSize": "household.size"
+      }
+    },
+    "source_urls": [
+      "https://acf.gov/ocs/programs/liheap",
+      "https://www.benefits.gov/benefit/623"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "MED-HARDSHIP", "name": "Medical Debt Hardship (Hospital Financial Assistance / Medicaid Screening)", "category": "medical", "agency": "HHS / CMS",
-    "eligibility": { "requirements": [ { "field": "medical.hasDebt", "op": "isTrue" }, { "field": "household.incomePercentFPL", "op": "lte", "value": 200 } ] },
-    "application": { "forms": ["Hospital Financial Assistance Application"], "instructions": ["Request the hospital's financial assistance policy.", "Screen for Medicaid at HealthCare.gov."],
-      "autoFill": { "fullName": "name", "householdSize": "household.size" } },
-    "source_urls": ["https://www.medicaid.gov/", "https://www.healthcare.gov/"], "last_verified": "2026-01-01"
+    "id": "med-hardship",
+    "name": "Medical Debt Hardship (Hospital Financial Assistance / Medicaid Screening)",
+    "agency": "HHS / CMS",
+    "debtType": [
+      "medical"
+    ],
+    "level": "federal",
+    "description": "Medical Debt Hardship (Hospital Financial Assistance / Medicaid Screening) (HHS / CMS).",
+    "eligibility": {
+      "requirements": [
+        "medical.hasDebt is true",
+        "household.incomePercentFPL <= 200"
+      ],
+      "rules": [
+        {
+          "field": "medical.hasDebt",
+          "op": "isTrue"
+        },
+        {
+          "field": "household.incomePercentFPL",
+          "op": "lte",
+          "value": 200
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "Hospital Financial Assistance Application"
+      ],
+      "instructions": "Request the hospital's financial assistance policy. Screen for Medicaid at HealthCare.gov.",
+      "autoFill": {
+        "fullName": "name",
+        "householdSize": "household.size"
+      }
+    },
+    "source_urls": [
+      "https://www.medicaid.gov/",
+      "https://www.healthcare.gov/"
+    ],
+    "last_verified": "2026-01-01"
   },
   {
-    "id": "FEMA-IA", "name": "FEMA Individual Assistance", "category": "emergency", "agency": "Federal Emergency Management Agency",
-    "eligibility": { "requirements": [ { "field": "disaster.declaredAreaAffected", "op": "isTrue" } ] },
-    "application": { "forms": ["FEMA Individual Assistance Application"], "instructions": ["Apply at DisasterAssistance.gov."],
-      "autoFill": { "fullName": "name", "address": "contact.address", "email": "contact.email" } },
-    "source_urls": ["https://www.disasterassistance.gov/"], "last_verified": "2026-01-01"
+    "id": "fema-ia",
+    "name": "FEMA Individual Assistance",
+    "agency": "Federal Emergency Management Agency",
+    "debtType": [
+      "emergency"
+    ],
+    "level": "federal",
+    "description": "FEMA Individual Assistance (Federal Emergency Management Agency).",
+    "eligibility": {
+      "requirements": [
+        "disaster.declaredAreaAffected is true"
+      ],
+      "rules": [
+        {
+          "field": "disaster.declaredAreaAffected",
+          "op": "isTrue"
+        }
+      ]
+    },
+    "application": {
+      "forms": [
+        "FEMA Individual Assistance Application"
+      ],
+      "instructions": "Apply at DisasterAssistance.gov.",
+      "autoFill": {
+        "fullName": "name",
+        "address": "contact.address",
+        "email": "contact.email"
+      }
+    },
+    "source_urls": [
+      "https://www.disasterassistance.gov/"
+    ],
+    "last_verified": "2026-01-01"
   }
 ]

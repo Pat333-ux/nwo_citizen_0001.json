@@ -5,7 +5,7 @@ import { beastIntegration } from "../src/pipeline/beast-hook.ts";
 
 test("pipeline returns packets for eligible programs only", () => {
   const packets = processMember({ id: "0001", name: "A", tax: { owesIRS: true, ssnLast4: "1234", balanceOwed: 100 } });
-  assert.deepEqual(packets.map(p => p.programId).sort(), ["TAX-IA", "TAX-OIC"]);
+  assert.deepEqual(packets.map(p => p.programId).sort(), ["tax-ia", "tax-oic"]);
   assert.equal(packets[0].autoFill.fullName, "A");
 });
 

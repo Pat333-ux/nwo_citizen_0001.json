@@ -24,12 +24,15 @@ export function checkRequirement(req: Requirement, member: Member): boolean {
 }
 
 export function evaluateEligibility(member: Member): Program[] {
-  return programs.filter(p => p.eligibility.requirements.every(r => checkRequirement(r, member)));
+  return programs.filter(p => {
+    const rules = p.eligibility.rules;
+    return !!rules?.length && rules.every(r => checkRequirement(r, member));
+  });
 }
 
 export function autoFill(program: Program, member: Member): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const [field, path] of Object.entries(program.application.autoFill)) {
+  for (const [field, path] of Object.entries(program.application.autoFill ?? {})) {
     out[field] = getPath(member, path) ?? null;
   }
   return out;
