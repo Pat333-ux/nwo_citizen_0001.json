@@ -1,0 +1,10 @@
+{
+  "name": "nwo-debt-relief-300",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Federal debt-relief catalog, eligibility evaluator and application-packet pipeline for Beast System 3.0.",
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  }
+}
