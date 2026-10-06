@@ -19,6 +19,10 @@ Append an object to `data/programs.json` following `config/schema.json`. `eligib
 ## Agency routing and submission
 `src/pipeline/agencies.ts` maps each program to its agency channel (by official source host). `src/pipeline/submission.ts` queues signed packets per agency with status tracking: `pending-approval` -> `approved` -> `submitted` -> agency outcome (`approved-by-agency` / `denied` / `pending-agency`). Nothing is submitted without explicit human approval, and this repo ships no agency transport: `submit()` takes an injected, agency-specific submitter that you must implement against each agency's authorized channel.
 
+## Submission Policy
+
+All submissions require explicit human approval. This repository prepares signed, structured packets but does not automatically submit them to any federal agency. Agencies require authenticated channels, identity verification, and human consent. The `submit()` function uses a caller-provided transport and will not execute without prior approval.
+
 ## Compliance and Verification
 
 This repository provides structured information and automation logic for U.S. government debt-relief programs. It is not legal, financial, or tax advice. Program rules, eligibility criteria, and application procedures can change at any time. All program entries must include official source URLs and a `last_verified` date. Users and downstream systems must always verify program details directly with the relevant federal agency before acting on any generated application packet.

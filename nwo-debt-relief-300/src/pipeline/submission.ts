@@ -81,3 +81,5 @@ export function listByAgency(agencyId: string): Submission[] {
 }
 
 export function clearSubmissions(): void { store.clear(); }
+
+export function listAll(): Submission[] { return [...store.values()]; }
