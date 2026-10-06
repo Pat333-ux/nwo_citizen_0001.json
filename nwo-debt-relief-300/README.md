@@ -16,6 +16,9 @@ Append an object to `data/programs.json` following `config/schema.json`. `eligib
 ## Beast System consumption
 `processMember` signs each packet (SHA-256 over programId, memberId, autoFill, timestamp); `src/pipeline/beast-hook.ts#beastIntegration(packet)` returns a routing envelope `{envelopeId, signature, route, payload, status: "ready-for-routing"}`; `src/pipeline/log.ts` records events for Beast System to route, log, and trigger municipal workflows.
 
+## Agency routing and submission
+`src/pipeline/agencies.ts` maps each program to its agency channel (by official source host). `src/pipeline/submission.ts` queues signed packets per agency with status tracking: `pending-approval` -> `approved` -> `submitted` -> agency outcome (`approved-by-agency` / `denied` / `pending-agency`). Nothing is submitted without explicit human approval, and this repo ships no agency transport: `submit()` takes an injected, agency-specific submitter that you must implement against each agency's authorized channel.
+
 ## Compliance and Verification
 
 This repository provides structured information and automation logic for U.S. government debt-relief programs. It is not legal, financial, or tax advice. Program rules, eligibility criteria, and application procedures can change at any time. All program entries must include official source URLs and a `last_verified` date. Users and downstream systems must always verify program details directly with the relevant federal agency before acting on any generated application packet.
