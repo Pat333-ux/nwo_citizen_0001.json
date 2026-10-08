@@ -1,0 +1,37 @@
+{
+  "document_id": "system_law_constitution_001",
+  "version": "1.0.0",
+  "description": "Deterministic governance law for Beast System 3.0",
+  "privacy_rules": {
+    "no_personal_identifiers": true,
+    "aggregate_only_required": true,
+    "location_tracking_prohibited": true
+  },
+  "consent_rules": {
+    "human_origin_required": true,
+    "explicit_consent_required": true
+  },
+  "wellbeing_rules": {
+    "priority": [
+      "shelter",
+      "food",
+      "medical",
+      "social_services",
+      "community_orgs"
+    ],
+    "lucr_alignment_required": true
+  },
+  "routing_rules": {
+    "use_document_84_for_wellbeing_signals": true,
+    "reject_on_privacy_violation": true,
+    "reject_on_missing_consent": true
+  },
+  "audit_rules": {
+    "quarterly_dao_audit_required": true,
+    "log_all_routing_envelopes": true
+  },
+  "ledger_rules": {
+    "immutable_envelopes": true,
+    "deterministic_hash_required": true
+  }
+}

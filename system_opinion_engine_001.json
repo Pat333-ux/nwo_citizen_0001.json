@@ -1,0 +1,49 @@
+{
+  "module_id": "system_opinion_engine_001",
+  "version": "1.0.0",
+  "description": "Deterministic opinion engine based on System Law + Document 84",
+  "system_law_document": "system_law_constitution_001.json",
+  "wellbeing_governance_document": "munisible_task_force_governance_84.json",
+  "deterministic": true,
+  "inputs": {
+    "routing_envelopes": true,
+    "aggregate_wellbeing_signals": true,
+    "dao_audit_flags": true,
+    "lucr_stability_metrics": true,
+    "service_demand_patterns": true
+  },
+  "outputs": {
+    "evaluations": true,
+    "governance_recommendations": true,
+    "wellbeing_alerts": true,
+    "resource_allocation_suggestions": true,
+    "dao_compliance_notices": true
+  },
+  "evaluation_rules": [
+    {
+      "id": "food_support_increase",
+      "when": {
+        "signal_type": "food_insecurity",
+        "aggregate_count_min": 10
+      },
+      "opinion": "Municipal food support should be increased.",
+      "recommended_action": "increase_food_support",
+      "basis": [
+        "wellbeing_rules",
+        "routing_envelopes"
+      ]
+    },
+    {
+      "id": "privacy_violation_review",
+      "when": {
+        "privacy_compliant": false
+      },
+      "opinion": "This routing envelope indicates a privacy violation; DAO review required.",
+      "recommended_action": "flag_for_dao_review",
+      "basis": [
+        "privacy_rules",
+        "audit_rules"
+      ]
+    }
+  ]
+}

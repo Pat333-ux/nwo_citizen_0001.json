@@ -20,3 +20,9 @@ Defines the governance framework for the Munisible Task Force as a voluntary, pr
   - `routing_rules` to select service paths.
   - `dao_compliance` to record governance compliance checks in the ledger.
 - Routing and ledger records contain aggregate, non-identifying information only.
+
+## System law and opinion engine
+
+- `system_law_constitution_001.json` defines the deterministic privacy, consent, wellbeing, routing, audit, and ledger rules.
+- `system_opinion_engine_001.json` evaluates aggregate signals and routing compliance using explicit rules grounded in the constitution and Document 84.
+- The assistance routing engine references both artifacts. Opinions are rule-based evaluations and recommendations; they do not enable individual profiling or surveillance.

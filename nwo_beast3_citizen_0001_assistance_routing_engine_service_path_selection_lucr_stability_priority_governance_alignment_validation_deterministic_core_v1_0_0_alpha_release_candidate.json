@@ -7,6 +7,8 @@
     "lucr_priority_score": 0.0,
     "governance_alignment": false,
     "community_wellbeing_governance_document": "munisible_task_force_governance_84.json",
+    "system_law_constitution": "system_law_constitution_001.json",
+    "system_opinion_engine": "system_opinion_engine_001.json",
     "privacy_and_voluntary_constraints": {
       "rules": [
         {
