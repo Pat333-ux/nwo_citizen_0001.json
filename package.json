@@ -1,0 +1,21 @@
+{
+  "name": "beast3-wellbeing-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministic, privacy-preserving wellbeing routing pipeline",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./runtime": "./src/wellbeing-pipeline.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  }
+}

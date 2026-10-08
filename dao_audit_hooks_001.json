@@ -20,6 +20,14 @@
       "audit_cycle": "quarterly"
     },
     {
+      "id": "aggregate_violation_hook",
+      "when": {
+        "validation.aggregate_compliant": false
+      },
+      "action": "flag_envelope_for_dao_review",
+      "audit_cycle": "quarterly"
+    },
+    {
       "id": "critical_opinion_hook",
       "when": {
         "system_opinion.severity": "critical"

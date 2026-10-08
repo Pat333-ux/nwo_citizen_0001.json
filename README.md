@@ -37,4 +37,10 @@ Defines the governance framework for the Munisible Task Force as a voluntary, pr
 3. Generate the rule-based system opinion and evaluate DAO audit hooks, including privacy/consent violations, critical opinions, audit-required opinions, LUCR instability, and municipal hazards.
 4. Anchor accepted and rejected envelopes with their governance document, audit cycle, flags, and deterministic hash. The routing contract specifies RFC 8785 JSON canonicalization and SHA-256, excludes the hash and envelope ID fields from the hashed payload, and marks ledger records immutable.
 
-These JSON files define governance contracts and examples; they do not themselves implement a running validator, router, audit service, hash writer, or immutable ledger.
+## TypeScript runtime
+
+`src/wellbeing-pipeline.ts` implements the validation, routing, opinion, audit-hook, envelope, and local ledger stages against the governance JSON files. It exports `processWellbeingSignal` and the `WellbeingSignal` / `RoutingEnvelope` interfaces. Node.js 22.6 or later is required for built-in TypeScript stripping; run `npm test` for the runtime tests.
+
+Call `processWellbeingSignal(signal, { ledgerDir })` with the required signal fields: `signal_type`, `aggregate_count`, `consent_flag`, `contains_personal_identifiers`, `aggregate_only`, and `human_origin`. The optional `lucr_stability` input accepts `stable`, `degrading`, or `improving`.
+
+The pipeline persists redacted, hash-addressed JSON records under `.beast3-ledger/` by default (or a caller-supplied `ledgerDir`). Records are created without overwrite, set read-only, and can be checked with `ImmutableFileLedger.verify`. This is local, tamper-evident file storage—not a distributed or administrator-proof immutable ledger—and the runtime does not contact municipal agencies, deliver referrals, or perform DAO governance actions.
