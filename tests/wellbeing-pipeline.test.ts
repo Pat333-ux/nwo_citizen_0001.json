@@ -5,9 +5,15 @@ import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import {
   ImmutableFileLedger,
+  applyAuditHooks,
+  evaluateOpinion,
   processWellbeingSignal,
+  routeSignal,
   validateSignal,
+  writeToLedger,
+  type DaoAuditHooksConfig,
   type Document84Config,
+  type SystemOpinionEngineConfig,
   type SystemLawConstitution,
   type WellbeingSignal
 } from "../src/wellbeing-pipeline.ts";
@@ -33,12 +39,21 @@ function signal(overrides: Partial<WellbeingSignal> = {}): WellbeingSignal {
   };
 }
 
-async function loadValidationDocuments(): Promise<[SystemLawConstitution, Document84Config]> {
-  const [lawText, documentText] = await Promise.all([
+async function loadValidationDocuments(): Promise<
+  [SystemLawConstitution, Document84Config, SystemOpinionEngineConfig, DaoAuditHooksConfig]
+> {
+  const [lawText, documentText, opinionText, hooksText] = await Promise.all([
     readFile(new URL("../system_law_constitution_001.json", import.meta.url), "utf8"),
-    readFile(new URL("../munisible_task_force_governance_84.json", import.meta.url), "utf8")
+    readFile(new URL("../munisible_task_force_governance_84.json", import.meta.url), "utf8"),
+    readFile(new URL("../system_opinion_engine_001.json", import.meta.url), "utf8"),
+    readFile(new URL("../dao_audit_hooks_001.json", import.meta.url), "utf8")
   ]);
-  return [JSON.parse(lawText), JSON.parse(documentText)];
+  return [
+    JSON.parse(lawText),
+    JSON.parse(documentText),
+    JSON.parse(opinionText),
+    JSON.parse(hooksText)
+  ];
 }
 
 afterEach(async () => {
@@ -73,6 +88,62 @@ describe("processWellbeingSignal", () => {
     assert.equal(unknownType.aggregate_compliant, false);
     assert.equal(nonAggregate.privacy_compliant, false);
     assert.equal(nonAggregate.aggregate_compliant, false);
+  });
+
+  it("routes from Document 84 rules and leaves rejected review decisions to audit hooks", async () => {
+    const [, doc84] = await loadValidationDocuments();
+    const invalid: Awaited<ReturnType<typeof validateSignal>> = {
+      privacy_compliant: false,
+      consent_compliant: true,
+      aggregate_compliant: false,
+      human_origin_verified: true,
+      rejection_reason: "privacy_violation"
+    };
+    const rejected = routeSignal(signal(), invalid, doc84);
+    assert.equal(rejected.status, "rejected");
+    assert.equal(rejected.primary_service_path, null);
+    assert.deepEqual(rejected.secondary_paths, []);
+    assert.equal(rejected.dao_review_required, false);
+    assert.equal(rejected.escalation_level, "none");
+
+    const valid = routeSignal(
+      signal({ signal_type: "medical_support" }),
+      {
+        privacy_compliant: true,
+        consent_compliant: true,
+        aggregate_compliant: true,
+        human_origin_verified: true,
+        rejection_reason: null
+      },
+      doc84
+    );
+    assert.equal(valid.primary_service_path, "medical");
+    assert.deepEqual(valid.secondary_paths, ["social_services", "community_orgs"]);
+  });
+
+  it("exposes opinion evaluation and audit hooks as independent services", async () => {
+    const [, , opinionEngine, hooks] = await loadValidationDocuments();
+    const result = await processWellbeingSignal(signal({ signal_type: "medical_support" }), {
+      ledgerDir: await makeLedgerDirectory(),
+      now: () => fixedTime
+    });
+    const opinion = evaluateOpinion(
+      signal({ signal_type: "medical_support" }),
+      result.validation,
+      result.routing_decision,
+      opinionEngine
+    );
+    assert.equal(opinion.recommended_action, "expand_medical_support");
+    assert.deepEqual(opinion.basis.triggered_rules, ["wellbeing_rules", "audit_rules"]);
+
+    const audited = applyAuditHooks(result, hooks);
+    assert.equal(audited.audit.dao_review_required, true);
+    assert.equal(audited.routing_decision.dao_review_required, true);
+    assert.ok(audited.audit.triggered_hooks.includes("critical_opinion_hook"));
+
+    const finalized = writeToLedger(audited);
+    assert.equal(finalized.deterministic_hash, result.deterministic_hash);
+    assert.equal(finalized.envelope_id, result.envelope_id);
   });
 
   it("routes a valid aggregate signal and stores only a hashed, immutable envelope", async () => {

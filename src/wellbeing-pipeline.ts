@@ -33,12 +33,22 @@ export interface SystemLawConstitution {
 
 export interface Document84Config {
   allowed_signal_types: string[];
+  routing_rules: {
+    signal_routes: Record<string, ServiceRoutingRule>;
+  };
   privacy_protocols: {
     explicit_consent_required: boolean;
     participation_is_voluntary: boolean;
     personal_identifiers_stored: boolean;
     individual_level_data_entered_into_routing: boolean;
   };
+}
+
+export interface ServiceRoutingRule {
+  path: string;
+  secondary_paths: string[];
+  dao_review_required: boolean;
+  escalation_level: RoutingDecision["escalation_level"];
 }
 
 export interface RoutingDecision {
@@ -103,9 +113,8 @@ interface GovernanceConfig {
   law: JsonObject;
   document84: JsonObject;
   router: JsonObject;
-  opinionEngine: JsonObject;
-  auditHooks: JsonObject;
-  opinionRules: OpinionRule[];
+  opinionEngine: SystemOpinionEngineConfig;
+  auditHooks: DaoAuditHooksConfig;
   document84Filename: string;
   lawFilename: string;
 }
@@ -120,6 +129,19 @@ interface OpinionRule {
   dao_alignment: SystemOpinion["dao_alignment"];
 }
 
+export interface SystemOpinionEngineConfig {
+  evaluation_rules: OpinionRule[];
+}
+
+export interface DaoAuditHooksConfig {
+  hooks: Array<{
+    id: string;
+    when: Record<string, unknown>;
+    action: string;
+    audit_cycle: "quarterly";
+  }>;
+}
+
 interface PipelineOptions {
   configDir?: string;
   ledgerDir?: string;
@@ -129,35 +151,6 @@ interface PipelineOptions {
 export interface LedgerWriter {
   write(envelope: RoutingEnvelope): Promise<RoutingEnvelope>;
 }
-
-const SERVICE_BY_SIGNAL: Record<string, string> = {
-  food_insecurity: "food",
-  shelter_need: "shelter",
-  housing_need: "shelter",
-  medical_support: "medical",
-  social_services: "social_services",
-  community_need: "community_orgs",
-  resource_gap: "community_orgs",
-  municipal_hazard: "municipal_services",
-  infrastructure_condition: "municipal_services",
-  service_availability: "municipal_services"
-};
-
-const SECONDARY_SERVICES: Record<string, string[]> = {
-  food: ["shelter", "community_orgs"],
-  shelter: ["food", "community_orgs"],
-  medical: ["social_services", "community_orgs"],
-  social_services: ["community_orgs", "food"],
-  community_orgs: ["social_services", "shelter"],
-  municipal_services: ["social_services", "community_orgs"]
-};
-
-const SEVERITY_RANK: Record<SystemOpinion["severity"], number> = {
-  info: 0,
-  notice: 1,
-  warning: 2,
-  critical: 3
-};
 
 const DEFAULT_FAILURE_REASON_PRECEDENCE = [
   "privacy_violation",
@@ -227,9 +220,8 @@ async function loadGovernanceConfig(configDir: string): Promise<GovernanceConfig
     law,
     document84,
     router: routing,
-    opinionEngine,
-    auditHooks,
-    opinionRules: opinionEngine.evaluation_rules as OpinionRule[],
+    opinionEngine: opinionEngine as SystemOpinionEngineConfig,
+    auditHooks: auditHooks as DaoAuditHooksConfig,
     document84Filename,
     lawFilename
   };
@@ -260,7 +252,8 @@ export async function validateSignal(
     !law?.privacy_rules ||
     !law?.consent_rules ||
     !doc84?.privacy_protocols ||
-    !Array.isArray(doc84.allowed_signal_types)
+    !Array.isArray(doc84.allowed_signal_types) ||
+    !doc84.routing_rules?.signal_routes
   ) {
     throw new TypeError("System Law or Document 84 is missing validation rules");
   }
@@ -302,7 +295,10 @@ export async function validateSignal(
   else if (signal.aggregate_count <= 0 || signal.aggregate_count < minimumAggregateCount) {
     reasons.add("insufficient_aggregate_count");
   }
-  if (!doc84.allowed_signal_types.includes(signal.signal_type) || !SERVICE_BY_SIGNAL[signal.signal_type]) {
+  if (
+    !doc84.allowed_signal_types.includes(signal.signal_type) ||
+    !doc84.routing_rules.signal_routes[signal.signal_type]
+  ) {
     reasons.add("unsupported_signal_type");
   }
 
@@ -318,79 +314,82 @@ export async function validateSignal(
   };
 }
 
-function routeSignal(
+export function routeSignal(
   signal: WellbeingSignal,
   validation: ValidationResult,
-  config: GovernanceConfig
+  doc84: Document84Config
 ): RoutingDecision {
   if (validation.rejection_reason) {
     return {
       status: "rejected",
       primary_service_path: null,
       secondary_paths: [],
-      dao_review_required: true,
+      dao_review_required: false,
       escalation_level: "none",
       layer_propagation: []
     };
   }
-  const primary = SERVICE_BY_SIGNAL[signal.signal_type];
-  if (!primary) {
+  const rule = doc84.routing_rules.signal_routes[signal.signal_type];
+  if (!rule) {
     return {
       status: "rejected",
       primary_service_path: null,
       secondary_paths: [],
-      dao_review_required: true,
+      dao_review_required: false,
       escalation_level: "none",
       layer_propagation: []
     };
   }
-  const priorities: string[] = config.router.preferred_service_path_for_wellbeing_signals;
-  const configuredSecondaries = SECONDARY_SERVICES[primary] ?? [];
-  const secondaries = configuredSecondaries
-    .filter((service) => priorities.includes(service) && service !== primary)
-    .slice(0, 2);
   return {
     status: "accepted",
-    primary_service_path: primary,
-    secondary_paths: secondaries,
-    dao_review_required: false,
-    escalation_level: "municipal",
+    primary_service_path: rule.path,
+    secondary_paths: rule.secondary_paths ?? [],
+    dao_review_required: rule.dao_review_required ?? false,
+    escalation_level: rule.escalation_level,
     layer_propagation: ["municipal"]
   };
 }
 
-function ruleMatches(rule: JsonObject, signal: WellbeingSignal, validation: ValidationResult): boolean {
-  const conditions = rule.when;
-  if (!conditions || typeof conditions !== "object") return false;
-  return Object.entries(conditions).every(([key, expected]) => {
-    if (key === "signal_type") return signal.signal_type === expected;
+function valueAtPath(context: JsonObject, path: string): unknown {
+  return path.split(".").reduce<unknown>((value, key) => {
+    if (!value || typeof value !== "object") return undefined;
+    return (value as JsonObject)[key];
+  }, context);
+}
+
+export function ruleMatchesContext(when: JsonObject, context: JsonObject): boolean {
+  if (!when || typeof when !== "object") return false;
+  return Object.entries(when).every(([key, expected]) => {
     if (key === "aggregate_count_min") {
-      return typeof expected === "number" && signal.aggregate_count >= expected;
+      const count = valueAtPath(context, "signal.aggregate_count");
+      return typeof count === "number" && typeof expected === "number" && count >= expected;
     }
-    if (key === "privacy_compliant") return validation.privacy_compliant === expected;
-    if (key === "consent_compliant") return validation.consent_compliant === expected;
-    if (key === "aggregate_compliant") return validation.aggregate_compliant === expected;
-    if (key === "human_origin_verified") return validation.human_origin_verified === expected;
-    if (key === "lucr_stability") return signal.lucr_stability === expected;
-    return false;
+    const candidates = key.includes(".")
+      ? [key]
+      : [
+          `signal.${key}`,
+          `validation.${key}`,
+          `routing.${key}`,
+          `routing.${key.replaceAll("_", ".")}`
+        ];
+    const value = candidates
+      .map((candidate) => valueAtPath(context, candidate))
+      .find((candidate) => candidate !== undefined);
+    return value === expected;
   });
 }
 
-function evaluateOpinion(
+export function evaluateOpinion(
   signal: WellbeingSignal,
   validation: ValidationResult,
-  config: GovernanceConfig
+  routing: RoutingDecision,
+  engine: SystemOpinionEngineConfig
 ): SystemOpinion {
-  const matches = config.opinionRules.filter((rule) => {
-    if (
-      validation.rejection_reason &&
-      !["privacy_violation_review"].includes(rule.id)
-    ) {
-      return false;
-    }
-    return ruleMatches(rule, signal, validation);
-  });
-  if (matches.length === 0) {
+  const context = { signal, validation, routing };
+  const matched = engine.evaluation_rules.find((rule) =>
+    ruleMatchesContext(rule.when, context)
+  );
+  if (!matched) {
     if (validation.rejection_reason) {
       const rejectionBasis: Record<string, string> = {
         missing_consent: "consent_rules",
@@ -434,42 +433,15 @@ function evaluateOpinion(
     };
   }
 
-  const severity = matches.reduce<SystemOpinion["severity"]>(
-    (highest: SystemOpinion["severity"], rule: OpinionRule) =>
-      SEVERITY_RANK[rule.severity as SystemOpinion["severity"]] > SEVERITY_RANK[highest]
-        ? rule.severity
-        : highest,
-    "info"
-  );
-  const basisFields = new Set<string>();
-  for (const rule of matches) {
-    for (const [key] of Object.entries(rule.when)) {
-      if (key === "signal_type" || key === "aggregate_count_min") {
-        basisFields.add("input_signal." + (key === "aggregate_count_min" ? "aggregate_count" : key));
-      } else {
-        basisFields.add("validation." + key);
-      }
-    }
-  }
   return {
-    evaluation: matches.map((rule) => rule.opinion).join(" "),
+    evaluation: matched.opinion,
     basis: {
-      triggered_rules: matches.map((rule) => rule.id),
-      supporting_envelope_fields: [...basisFields]
+      triggered_rules: matched.basis,
+      supporting_envelope_fields: ["input_signal", "validation", "routing_decision"]
     },
-    recommended_action: matches[0].recommended_action,
-    severity,
-    dao_alignment: {
-      lucr_stability_impact: matches.some((rule) =>
-        rule.dao_alignment?.lucr_stability_impact === "positive"
-      )
-        ? "positive"
-        : "neutral",
-      wellbeing_priority_alignment: matches.some(
-        (rule) => rule.dao_alignment?.wellbeing_priority_alignment === true
-      ),
-      audit_required: matches.some((rule) => rule.dao_alignment?.audit_required === true)
-    }
+    recommended_action: matched.recommended_action,
+    severity: matched.severity,
+    dao_alignment: matched.dao_alignment
   };
 }
 
@@ -480,11 +452,11 @@ function getPathValue(root: JsonObject, path: string): unknown {
   }, root);
 }
 
-function applyAuditHooks(
-  envelope: JsonObject,
-  auditHooks: JsonObject
-): { triggeredHooks: string[]; daoReviewRequired: boolean } {
-  const hooks = auditHooks.hooks ?? [];
+export function applyAuditHooks(
+  envelope: RoutingEnvelope,
+  hooksConfig: DaoAuditHooksConfig
+): RoutingEnvelope {
+  const hooks = hooksConfig.hooks ?? [];
   const triggeredHooks = hooks
     .filter((hook: JsonObject) =>
       Object.entries(hook.when ?? {}).every(
@@ -492,9 +464,19 @@ function applyAuditHooks(
       )
     )
     .map((hook: JsonObject) => hook.id);
+  const daoReviewRequired =
+    envelope.routing_decision.dao_review_required || triggeredHooks.length > 0;
   return {
-    triggeredHooks,
-    daoReviewRequired: triggeredHooks.length > 0 || envelope.routing_decision.status === "rejected"
+    ...envelope,
+    routing_decision: {
+      ...envelope.routing_decision,
+      dao_review_required: daoReviewRequired
+    },
+    audit: {
+      ...envelope.audit,
+      triggered_hooks: triggeredHooks,
+      dao_review_required: daoReviewRequired
+    }
   };
 }
 
@@ -523,6 +505,33 @@ function canonicalize(value: unknown): string {
 
 function envelopeHash(envelope: Omit<RoutingEnvelope, "envelope_id" | "deterministic_hash">): string {
   return createHash("sha256").update(canonicalize(envelope)).digest("hex");
+}
+
+export function writeToLedger(
+  envelope: Omit<RoutingEnvelope, "envelope_id" | "deterministic_hash">
+): RoutingEnvelope {
+  const {
+    envelope_id: _envelopeId,
+    deterministic_hash: _deterministicHash,
+    ...envelopeWithoutHashes
+  } = envelope as RoutingEnvelope;
+  const ledgerAnchor: RoutingEnvelope["ledger_anchor"] = {
+    category: envelope.routing_decision.status === "accepted" ? "community_wellbeing" : "rejected_payload",
+    governance_document: envelope.document_anchor,
+    audit_cycle: "quarterly",
+    flags: {
+      privacy_violation: !envelope.validation.privacy_compliant,
+      consent_missing: !envelope.validation.consent_compliant,
+      human_origin_missing: !envelope.validation.human_origin_verified
+    }
+  };
+  const hashable = { ...envelopeWithoutHashes, ledger_anchor: ledgerAnchor };
+  const digest = envelopeHash(hashable);
+  return {
+    ...hashable,
+    envelope_id: `sha256:${digest}`,
+    deterministic_hash: digest
+  };
 }
 
 export class ImmutableFileLedger implements LedgerWriter {
@@ -588,21 +597,25 @@ export async function processWellbeingSignal(
     config.router.validation_layer.minimum_aggregate_count,
     config.router.validation_layer.failure_reason_precedence
   );
-  const routingDecision = routeSignal(signal, validation, config);
-  const systemOpinion = evaluateOpinion(signal, validation, config);
+  const routingDecision = routeSignal(signal, validation, config.document84 as Document84Config);
+  const systemOpinion = evaluateOpinion(
+    signal,
+    validation,
+    routingDecision,
+    config.opinionEngine
+  );
   const safeInputSignal: RoutingEnvelope["input_signal"] = {
-    signal_type: SERVICE_BY_SIGNAL[signal.signal_type] ? signal.signal_type : "unclassified"
+    signal_type: config.document84.routing_rules.signal_routes[signal.signal_type]
+      ? signal.signal_type
+      : "unclassified"
   };
   if (!validation.rejection_reason) {
     safeInputSignal.aggregate_count = signal.aggregate_count;
     if (signal.lucr_stability) safeInputSignal.lucr_stability = signal.lucr_stability;
   }
 
-  if (routingDecision.status === "rejected" && !validation.rejection_reason) {
-    validation.rejection_reason = "unsupported_signal_type";
-  }
   const timestamp = (options.now ?? (() => new Date()))().toISOString();
-  const opinionEnvelope = {
+  const baseEnvelope: Omit<RoutingEnvelope, "envelope_id" | "deterministic_hash"> = {
     timestamp,
     document_anchor: config.document84Filename,
     governance_document_version: config.document84.version,
@@ -613,43 +626,42 @@ export async function processWellbeingSignal(
     system_opinion: systemOpinion,
     audit: {
       triggered_hooks: [] as string[],
-      dao_review_required: false,
+      dao_review_required: routingDecision.dao_review_required,
       audit_cycle: "quarterly" as const
+    },
+    ledger_anchor: {
+      category: routingDecision.status === "accepted" ? "community_wellbeing" : "rejected_payload",
+      governance_document: config.document84Filename,
+      audit_cycle: "quarterly",
+      flags: {
+        privacy_violation: !validation.privacy_compliant,
+        consent_missing: !validation.consent_compliant,
+        human_origin_missing: !validation.human_origin_verified
+      }
     }
   };
-  const audit = applyAuditHooks(opinionEnvelope, config.auditHooks);
-  opinionEnvelope.audit.triggered_hooks = audit.triggeredHooks;
-  opinionEnvelope.audit.dao_review_required = audit.daoReviewRequired;
-  routingDecision.dao_review_required = audit.daoReviewRequired;
+  const audited = applyAuditHooks(
+    { ...baseEnvelope, envelope_id: "", deterministic_hash: "" },
+    config.auditHooks
+  );
 
   const layers: RoutingDecision["layer_propagation"] = [];
-  if (routingDecision.status === "accepted") {
+  if (audited.routing_decision.status === "accepted") {
     layers.push("municipal");
-    if (systemOpinion.severity === "warning" || systemOpinion.severity === "critical" || audit.daoReviewRequired) {
+    if (
+      systemOpinion.severity === "warning" ||
+      systemOpinion.severity === "critical" ||
+      audited.audit.dao_review_required
+    ) {
       layers.push("county");
     }
-    if (audit.triggeredHooks.length > 0) layers.push("state", "federal", "dao");
-    routingDecision.layer_propagation = layers;
-    routingDecision.escalation_level = layers[layers.length - 1] as RoutingDecision["escalation_level"];
+    if (audited.audit.triggered_hooks.length > 0) layers.push("state", "federal", "dao");
+    audited.routing_decision.layer_propagation = layers;
+    audited.routing_decision.escalation_level =
+      layers[layers.length - 1] as RoutingDecision["escalation_level"];
   }
 
-  const ledgerAnchor: RoutingEnvelope["ledger_anchor"] = {
-    category: routingDecision.status === "accepted" ? "community_wellbeing" : "rejected_payload",
-    governance_document: config.document84Filename,
-    audit_cycle: "quarterly",
-    flags: {
-      privacy_violation: !validation.privacy_compliant,
-      consent_missing: !validation.consent_compliant,
-      human_origin_missing: !validation.human_origin_verified
-    }
-  };
-  const withoutHashes = { ...opinionEnvelope, ledger_anchor: ledgerAnchor };
-  const digest = envelopeHash(withoutHashes);
-  const envelope: RoutingEnvelope = {
-    ...withoutHashes,
-    envelope_id: `sha256:${digest}`,
-    deterministic_hash: digest
-  };
+  const envelope = writeToLedger(audited);
 
   const ledger = new ImmutableFileLedger(
     resolve(options.ledgerDir ?? join(configDir, ".beast3-ledger"))

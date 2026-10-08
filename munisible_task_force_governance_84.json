@@ -78,6 +78,68 @@
     "program": 300,
     "mode": "deterministic",
     "unit_of_routing": "anonymized aggregate issue",
+    "signal_routes": {
+      "food_insecurity": {
+        "path": "food",
+        "secondary_paths": ["shelter", "community_orgs"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "shelter_need": {
+        "path": "shelter",
+        "secondary_paths": ["food", "community_orgs"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "housing_need": {
+        "path": "shelter",
+        "secondary_paths": ["food", "community_orgs"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "medical_support": {
+        "path": "medical",
+        "secondary_paths": ["social_services", "community_orgs"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "social_services": {
+        "path": "social_services",
+        "secondary_paths": ["community_orgs", "food"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "community_need": {
+        "path": "community_orgs",
+        "secondary_paths": ["social_services", "shelter"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "resource_gap": {
+        "path": "community_orgs",
+        "secondary_paths": ["social_services", "shelter"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "municipal_hazard": {
+        "path": "municipal_services",
+        "secondary_paths": ["social_services", "community_orgs"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "infrastructure_condition": {
+        "path": "municipal_services",
+        "secondary_paths": ["social_services", "community_orgs"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      },
+      "service_availability": {
+        "path": "municipal_services",
+        "secondary_paths": ["social_services", "community_orgs"],
+        "dao_review_required": false,
+        "escalation_level": "municipal"
+      }
+    },
     "steps": [
       {
         "level": "municipal",
