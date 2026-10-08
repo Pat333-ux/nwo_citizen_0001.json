@@ -26,3 +26,4 @@ Defines the governance framework for the Munisible Task Force as a voluntary, pr
 - `system_law_constitution_001.json` defines the deterministic privacy, consent, wellbeing, routing, audit, and ledger rules.
 - `system_opinion_engine_001.json` evaluates aggregate signals and routing compliance using explicit rules grounded in the constitution and Document 84.
 - The assistance routing engine references both artifacts. Opinions are rule-based evaluations and recommendations; they do not enable individual profiling or surveillance.
+- The assistance routing envelope carries `system_opinion` with an evaluation, triggered rule basis, supporting envelope fields, recommended action, severity, and DAO alignment flags.

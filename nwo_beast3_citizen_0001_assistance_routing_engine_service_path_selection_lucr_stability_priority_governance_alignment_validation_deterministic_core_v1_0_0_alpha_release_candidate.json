@@ -9,6 +9,30 @@
     "community_wellbeing_governance_document": "munisible_task_force_governance_84.json",
     "system_law_constitution": "system_law_constitution_001.json",
     "system_opinion_engine": "system_opinion_engine_001.json",
+    "routing_envelope": {
+      "system_opinion": {
+        "evaluation": "Community wellbeing indicators show increased food insecurity.",
+        "basis": {
+          "triggered_rules": [
+            "wellbeing_rules",
+            "routing_rules",
+            "audit_rules"
+          ],
+          "supporting_envelope_fields": [
+            "input_signal.aggregate_count",
+            "validation.aggregate_compliant",
+            "routing_decision.primary_service_path"
+          ]
+        },
+        "recommended_action": "increase_food_support",
+        "severity": "warning",
+        "dao_alignment": {
+          "lucr_stability_impact": "positive",
+          "wellbeing_priority_alignment": true,
+          "audit_required": false
+        }
+      }
+    },
     "privacy_and_voluntary_constraints": {
       "rules": [
         {

@@ -17,6 +17,39 @@
           "shelter",
           "community_orgs"
         ],
+        "routing_envelope": {
+          "input_signal": {
+            "aggregate_count": 12
+          },
+          "validation": {
+            "aggregate_compliant": true
+          },
+          "routing_decision": {
+            "primary_service_path": "food"
+          },
+          "system_opinion": {
+            "evaluation": "Community wellbeing indicators show increased food insecurity.",
+            "basis": {
+              "triggered_rules": [
+                "wellbeing_rules",
+                "routing_rules",
+                "audit_rules"
+              ],
+              "supporting_envelope_fields": [
+                "input_signal.aggregate_count",
+                "validation.aggregate_compliant",
+                "routing_decision.primary_service_path"
+              ]
+            },
+            "recommended_action": "increase_food_support",
+            "severity": "warning",
+            "dao_alignment": {
+              "lucr_stability_impact": "positive",
+              "wellbeing_priority_alignment": true,
+              "audit_required": false
+            }
+          }
+        },
         "ledger_entry": {
           "category": "community_wellbeing",
           "document_anchor": "munisible_task_force_governance_84.json",
