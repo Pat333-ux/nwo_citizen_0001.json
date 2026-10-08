@@ -145,8 +145,10 @@ export interface DaoAuditHooksConfig {
 export interface PipelineOptions {
   configDir?: string;
   ledgerDir?: string;
+  replicaDir?: string;
   now?: () => Date;
   runtimeConfig?: WellbeingRuntimeConfig;
+  onStageTiming?: (stage: "validation" | "routing" | "opinion" | "audit" | "ledger", durationMs: number) => void;
 }
 
 export interface LedgerWriter {
@@ -546,6 +548,7 @@ export class ImmutableFileLedger implements LedgerWriter {
 
   async write(envelope: RoutingEnvelope): Promise<RoutingEnvelope> {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
+    await chmod(this.directory, 0o700);
     const destination = join(this.directory, `${envelope.deterministic_hash}.json`);
     const contents = `${JSON.stringify(envelope)}\n`;
     let file;
@@ -598,21 +601,37 @@ export async function processWellbeingSignal(
   signal: WellbeingSignal,
   options: PipelineOptions = {}
 ): Promise<RoutingEnvelope> {
+  const measure = <T>(
+    stage: "validation" | "routing" | "opinion" | "audit" | "ledger",
+    operation: () => T
+  ): T => {
+    const started = performance.now();
+    try {
+      return operation();
+    } finally {
+      options.onStageTiming?.(stage, performance.now() - started);
+    }
+  };
   const configDir = resolve(options.configDir ?? process.cwd());
   const config = options.runtimeConfig ?? await loadWellbeingRuntimeConfig(configDir);
-  const validation = await validateSignal(
-    signal,
-    config.law as SystemLawConstitution,
-    config.document84 as Document84Config,
-    config.router.validation_layer.minimum_aggregate_count,
-    config.router.validation_layer.failure_reason_precedence
+  const validationStarted = performance.now();
+  let validation: ValidationResult;
+  try {
+    validation = await validateSignal(
+      signal,
+      config.law as SystemLawConstitution,
+      config.document84 as Document84Config,
+      config.router.validation_layer.minimum_aggregate_count,
+      config.router.validation_layer.failure_reason_precedence
+    );
+  } finally {
+    options.onStageTiming?.("validation", performance.now() - validationStarted);
+  }
+  const routingDecision = measure("routing", () =>
+    routeSignal(signal, validation, config.document84 as Document84Config)
   );
-  const routingDecision = routeSignal(signal, validation, config.document84 as Document84Config);
-  const systemOpinion = evaluateOpinion(
-    signal,
-    validation,
-    routingDecision,
-    config.opinionEngine
+  const systemOpinion = measure("opinion", () =>
+    evaluateOpinion(signal, validation, routingDecision, config.opinionEngine)
   );
   const safeInputSignal: RoutingEnvelope["input_signal"] = {
     signal_type: config.document84.routing_rules.signal_routes[signal.signal_type]
@@ -650,10 +669,10 @@ export async function processWellbeingSignal(
       }
     }
   };
-  const audited = applyAuditHooks(
-    { ...baseEnvelope, envelope_id: "", deterministic_hash: "" },
-    config.auditHooks
-  );
+  const audited = measure("audit", () => applyAuditHooks(
+      { ...baseEnvelope, envelope_id: "", deterministic_hash: "" },
+      config.auditHooks
+    ));
 
   const layers: RoutingDecision["layer_propagation"] = [];
   if (audited.routing_decision.status === "accepted") {
@@ -671,10 +690,20 @@ export async function processWellbeingSignal(
       layers[layers.length - 1] as RoutingDecision["escalation_level"];
   }
 
+  const ledgerStarted = performance.now();
   const envelope = writeToLedger(audited);
-
-  const ledger = new ImmutableFileLedger(
-    resolve(options.ledgerDir ?? join(configDir, ".beast3-ledger"))
-  );
-  return ledger.write(envelope);
+  const ledger = new ImmutableFileLedger(resolve(options.ledgerDir ?? join(configDir, ".beast3-ledger")));
+  try {
+    const stored = await ledger.write(envelope);
+    if (options.replicaDir) {
+      const replica = new ImmutableFileLedger(resolve(options.replicaDir));
+      await replica.write(stored);
+      if (!(await replica.verify(stored.deterministic_hash))) {
+        throw new Error("Ledger replica integrity verification failed");
+      }
+    }
+    return stored;
+  } finally {
+    options.onStageTiming?.("ledger", performance.now() - ledgerStarted);
+  }
 }

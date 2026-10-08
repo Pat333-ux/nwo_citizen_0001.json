@@ -14,7 +14,11 @@
   },
   "exports": {
     "./runtime": "./src/wellbeing-pipeline.ts",
-    "./http": "./src/http-service.ts"
+    "./http": "./src/http-service.ts",
+    "./queue": "./src/file-queue.ts",
+    "./audit": "./src/quarterly-audit.ts",
+    "./outbound": "./src/outbound-routing.ts",
+    "./replication": "./src/ledger-replication.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

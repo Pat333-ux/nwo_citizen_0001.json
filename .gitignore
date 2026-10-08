@@ -1,2 +1,4 @@
 .beast3-ledger/
+.beast3-queue/
+.beast3-audit/
 /node_modules/

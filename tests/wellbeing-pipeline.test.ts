@@ -3,7 +3,15 @@ import { chmod, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { createWellbeingHttpServer, startWellbeingHttpService } from "../src/http-service.ts";
+import {
+  createWellbeingHttpServer,
+  startWellbeingHttpService,
+  type WellbeingHttpOptions
+} from "../src/http-service.ts";
+import { FileSignalQueue } from "../src/file-queue.ts";
+import { generateQuarterlyAuditReport } from "../src/quarterly-audit.ts";
+import { dispatchAggregateEnvelope, validateOutboundTargets } from "../src/outbound-routing.ts";
+import { replicateAndVerifyLedger } from "../src/ledger-replication.ts";
 import {
   ImmutableFileLedger,
   applyAuditHooks,
@@ -307,96 +315,314 @@ describe("processWellbeingSignal", () => {
 });
 
 describe("wellbeing HTTP service", () => {
-  async function startService(options: { maxBodyBytes?: number; maxBatchSize?: number } = {}) {
+  async function startService(options: Partial<WellbeingHttpOptions> = {}) {
     const ledgerDir = await makeLedgerDirectory();
+    const apiKey = options.apiKey ?? "test-service-key";
     const server = await startWellbeingHttpService({
       configDir: process.cwd(),
       ledgerDir,
+      queueDir: join(ledgerDir, "queue"),
+      auditReportDir: join(ledgerDir, "reports"),
       host: "127.0.0.1",
       port: 0,
       now: () => fixedTime,
+      apiKey,
       ...options
     });
     httpServers.push(server);
     const address = server.address();
     assert.ok(address && typeof address !== "string");
-    return { baseUrl: `http://127.0.0.1:${address.port}`, ledgerDir };
+    return {
+      baseUrl: `http://127.0.0.1:${address.port}`,
+      ledgerDir,
+      queueDir: join(ledgerDir, "queue"),
+      apiKey
+    };
+  }
+
+  async function waitForJob(baseUrl: string, id: string, apiKey = "test-service-key") {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const response = await fetch(`${baseUrl}/jobs/${id}`, {
+        headers: { authorization: "Bearer " + apiKey }
+      });
+      const result = await response.json() as {
+        id: string;
+        status: string;
+        deterministic_hash?: string;
+        outbound_deliveries?: unknown[];
+      };
+      if (result.status === "completed" || result.status === "failed") return result;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error("Timed out waiting for queue worker");
   }
 
   it("ingests signals, returns only redacted envelopes, and supports verified ledger retrieval", async () => {
-    const { baseUrl } = await startService();
+    const { baseUrl, apiKey } = await startService();
     const response = await fetch(`${baseUrl}/signals`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: "Bearer " + apiKey },
       body: JSON.stringify(signal())
     });
-    const envelope = await response.json() as Awaited<ReturnType<typeof processWellbeingSignal>>;
-    assert.equal(response.status, 200);
+    const job = await response.json() as { id: string; status: string };
+    assert.equal(response.status, 202);
+    assert.equal(job.status, "queued");
+    const completed = await waitForJob(baseUrl, job.id, apiKey);
+    assert.equal(completed.status, "completed");
+    assert.ok(completed.deterministic_hash);
+    const recordResponse = await fetch(`${baseUrl}/ledger/${completed.deterministic_hash}`, {
+      headers: { authorization: "Bearer " + apiKey }
+    });
+    const envelope = await recordResponse.json() as Awaited<ReturnType<typeof processWellbeingSignal>>;
     assert.deepEqual(Object.keys(envelope.input_signal).sort(), ["aggregate_count", "signal_type"]);
-
-    const recordResponse = await fetch(`${baseUrl}/ledger/${envelope.deterministic_hash}`);
     assert.equal(recordResponse.status, 200);
-    assert.equal((await recordResponse.json() as typeof envelope).deterministic_hash, envelope.deterministic_hash);
-    const verification = await fetch(`${baseUrl}/ledger/${envelope.deterministic_hash}/verify`);
+    assert.equal(envelope.deterministic_hash, completed.deterministic_hash);
+    const verification = await fetch(`${baseUrl}/ledger/${envelope.deterministic_hash}/verify`, {
+      headers: { authorization: "Bearer " + apiKey }
+    });
     assert.deepEqual(await verification.json(), {
       deterministic_hash: envelope.deterministic_hash,
       valid: true
     });
-    assert.deepEqual(await (await fetch(`${baseUrl}/metrics`)).json(), {
-      signals_received: 1,
-      accepted: 1,
-      rejected: 0,
-      critical_opinions: 0,
-      dao_reviews: 0,
-      last_processed_at: fixedTime.toISOString()
-    });
+    const metrics = await (await fetch(`${baseUrl}/metrics`, {
+      headers: { authorization: "Bearer " + apiKey }
+    })).json() as Record<string, any>;
+    assert.equal(metrics.signals_received, 1);
+    assert.equal(metrics.accepted, 1);
+    assert.equal(metrics.rejected, 0);
+    assert.equal(metrics.last_processed_at, fixedTime.toISOString());
+    for (const stage of ["validation", "routing", "opinion", "audit", "ledger"]) {
+      assert.equal(metrics.stage_timings_ms[stage].count, 1);
+    }
+    assert.equal(metrics.opinion_rules.wellbeing_rules, 1);
   });
 
   it("prevalidates a batch before processing and processes valid batches in order", async () => {
-    const { baseUrl, ledgerDir } = await startService({ maxBatchSize: 3 });
+    const { baseUrl, queueDir, apiKey } = await startService({ maxBatchSize: 3 });
     const malformed = await fetch(`${baseUrl}/signals/batch`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: "Bearer " + apiKey },
       body: JSON.stringify([signal(), { ...signal(), aggregate_count: "12" }])
     });
     assert.equal(malformed.status, 400);
-    assert.deepEqual(await readdir(ledgerDir), []);
+    assert.deepEqual(await readdir(queueDir), [".worker.lock", "completed", "pending", "processing"]);
+    assert.deepEqual(await readdir(join(queueDir, "pending")), []);
 
     const batch = await fetch(`${baseUrl}/signals/batch`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: "Bearer " + apiKey },
       body: JSON.stringify([
         signal(),
         signal({ consent_flag: false, signal_type: "shelter_need" })
       ])
     });
-    const { envelopes } = await batch.json() as {
-      envelopes: Awaited<ReturnType<typeof processWellbeingSignal>>[];
+    const { jobs } = await batch.json() as {
+      jobs: Array<{ id: string; status: string }>;
     };
-    assert.equal(batch.status, 200);
-    assert.deepEqual(envelopes.map((envelope) => envelope.routing_decision.status), ["accepted", "rejected"]);
-    assert.deepEqual(envelopes.map((envelope) => envelope.input_signal.aggregate_count), [12, undefined]);
-    assert.deepEqual(await (await fetch(`${baseUrl}/metrics`)).json(), {
-      signals_received: 2,
-      accepted: 1,
-      rejected: 1,
-      critical_opinions: 0,
-      dao_reviews: 1,
-      last_processed_at: fixedTime.toISOString()
-    });
+    assert.equal(batch.status, 202);
+    const completed = await Promise.all(jobs.map((job) => waitForJob(baseUrl, job.id, apiKey)));
+    assert.deepEqual(completed.map((job) => job.status), ["completed", "completed"]);
+    const metrics = await (await fetch(`${baseUrl}/metrics`, {
+      headers: { authorization: "Bearer " + apiKey }
+    })).json() as Record<string, any>;
+    assert.equal(metrics.signals_received, 2);
+    assert.equal(metrics.accepted, 1);
+    assert.equal(metrics.rejected, 1);
+    assert.equal(metrics.dao_reviews, 1);
+    assert.equal(metrics.validation_rejections.missing_consent, 1);
+    assert.equal(metrics.stage_timings_ms.validation.count, 2);
   });
 
   it("bounds request sizes and returns safe client errors", async () => {
-    const { baseUrl } = await startService({ maxBodyBytes: 20 });
+    const { baseUrl, apiKey } = await startService({ maxBodyBytes: 20 });
     const oversized = await fetch(`${baseUrl}/signals`, {
       method: "POST",
+      headers: { authorization: "Bearer " + apiKey },
       body: JSON.stringify(signal())
     });
     assert.equal(oversized.status, 413);
     assert.deepEqual(await oversized.json(), {
       error: "Request body exceeds the configured limit"
     });
-    const missing = await fetch(`${baseUrl}/ledger/${"a".repeat(64)}`);
+    const missing = await fetch(`${baseUrl}/ledger/${"a".repeat(64)}`, {
+      headers: { authorization: "Bearer " + apiKey }
+    });
     assert.equal(missing.status, 404);
+  });
+
+  it("requires API keys for protected endpoints and applies per-client rate limits", async () => {
+    const apiKey = "test-service-key";
+    const { baseUrl } = await startService({
+      apiKey,
+      rateLimitMaxRequests: 2,
+      rateLimitWindowMs: 60_000
+    });
+    assert.equal((await fetch(`${baseUrl}/metrics`)).status, 401);
+    const authorized = await fetch(`${baseUrl}/metrics`, {
+      headers: { authorization: "Bearer " + apiKey }
+    });
+    assert.equal(authorized.status, 200);
+    const limited = await fetch(`${baseUrl}/metrics`, {
+      headers: { authorization: "Bearer " + apiKey }
+    });
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get("retry-after"), "60");
+    await assert.rejects(
+      createWellbeingHttpServer({ configDir: process.cwd(), host: "0.0.0.0" }),
+      /BEAST3_API_KEY is required/
+    );
+  });
+
+  it("returns backpressure when the durable queue reaches capacity", async () => {
+    const { baseUrl, apiKey } = await startService({
+      maxQueueSize: 1,
+      workerPollIntervalMs: 10_000
+    });
+    const post = () => fetch(`${baseUrl}/signals`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + apiKey },
+      body: JSON.stringify(signal())
+    });
+    assert.equal((await post()).status, 202);
+    const full = await post();
+    assert.equal(full.status, 503);
+    assert.equal(full.headers.get("retry-after"), "1");
+  });
+
+  it("redacts rejected queue payloads before they are persisted", async () => {
+    const { baseUrl, queueDir, apiKey } = await startService({ workerPollIntervalMs: 10_000 });
+    const response = await fetch(`${baseUrl}/signals/batch`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + apiKey },
+      body: JSON.stringify([
+        signal({ aggregate_count: 9 }),
+        signal({ signal_type: "unrecognized-sensitive-category" })
+      ])
+    });
+    assert.equal(response.status, 202);
+    const queued = await Promise.all((await readdir(join(queueDir, "pending"))).map(async (name) =>
+      JSON.parse(await readFile(join(queueDir, "pending", name), "utf8")).signal as WellbeingSignal
+    ));
+    assert.ok(queued.some((job) => job.aggregate_count === 0));
+    assert.ok(queued.some((job) => job.signal_type === "unclassified"));
+    for (const job of queued) {
+      assert.equal("contact_detail" in job, false);
+      assert.equal("personal_identifier" in job, false);
+    }
+  });
+
+  it("prevents multiple service workers from consuming one file queue concurrently", async () => {
+    const { queueDir } = await startService();
+    await assert.rejects(
+      createWellbeingHttpServer({
+        configDir: process.cwd(),
+        ledgerDir: await makeLedgerDirectory(),
+        queueDir,
+        apiKey: "test-service-key"
+      }),
+      /Another queue worker is already active/
+    );
+  });
+});
+
+describe("durable queue, audit reports, routing adapters, and replication", () => {
+  it("recovers queued jobs and stores only the declared signal fields", async () => {
+    const directory = await makeLedgerDirectory();
+    const queue = new FileSignalQueue(directory);
+    const queued = await queue.enqueue({ ...signal(), contact_detail: "drop-this" } as WellbeingSignal);
+    const restarted = new FileSignalQueue(directory);
+    const job = await restarted.claim();
+    assert.ok(job);
+    assert.equal(job.id, queued.id);
+    assert.equal("contact_detail" in job.signal, false);
+    assert.deepEqual(Object.keys(job.signal).sort(), [
+      "aggregate_count",
+      "aggregate_only",
+      "consent_flag",
+      "contains_personal_identifiers",
+      "human_origin",
+      "signal_type"
+    ]);
+    await restarted.fail(job);
+    assert.deepEqual(await restarted.get(job.id), {
+      id: job.id,
+      status: "failed",
+      error_code: "processing_failed"
+    });
+  });
+
+  it("generates quarterly reports from verified review-required ledger envelopes", async () => {
+    const ledgerDirectory = await makeLedgerDirectory();
+    const reportDirectory = join(ledgerDirectory, "reports");
+    await processWellbeingSignal(signal({ signal_type: "medical_support" }), {
+      ledgerDir: ledgerDirectory,
+      now: () => fixedTime
+    });
+    const report = await generateQuarterlyAuditReport(
+      ledgerDirectory,
+      reportDirectory,
+      "2026-Q4",
+      fixedTime
+    );
+    assert.equal(report.reviewed_envelopes, 1);
+    assert.equal(report.counts_by_signal_type.medical_support, 1);
+    assert.equal(report.severity_distribution.critical, 1);
+    assert.ok(report.routing_paths.federal >= 1);
+    assert.ok(report.escalations.dao >= 1);
+    assert.match(await readFile(join(reportDirectory, "dao-audit-2026-Q4.md"), "utf8"), /LUCR stability impact/);
+    assert.deepEqual(
+      await generateQuarterlyAuditReport(ledgerDirectory, reportDirectory, "2026-Q4", new Date("2026-10-09T20:00:00.000Z")),
+      report
+    );
+  });
+
+  it("sends only aggregate fields to configured HTTPS targets and records deterministic failures", async () => {
+    const ledgerDirectory = await makeLedgerDirectory();
+    const envelope = await processWellbeingSignal(signal({ signal_type: "medical_support" }), {
+      ledgerDir: ledgerDirectory,
+      now: () => fixedTime
+    });
+    const bodies: string[] = [];
+    const idempotencyKeys: string[] = [];
+    const deliveries = await dispatchAggregateEnvelope(
+      envelope,
+      { medical: "https://agency.example/intake" },
+      100,
+      async (_url, init) => {
+        bodies.push(String(init?.body));
+        idempotencyKeys.push(new Headers(init?.headers).get("idempotency-key") ?? "");
+        return new Response(null, { status: 503 });
+      },
+      "job-123"
+    );
+    assert.deepEqual(deliveries, [{
+      service_path: "medical",
+      status: "failed",
+      error_code: "http_error"
+    }]);
+    assert.deepEqual(JSON.parse(bodies[0]), {
+      signal_type: "medical_support",
+      aggregate_count: 12,
+      service_path: "medical",
+      escalation_level: "dao"
+    });
+    assert.equal(bodies[0].includes("consent_flag"), false);
+    assert.deepEqual(idempotencyKeys, ["job-123"]);
+    assert.throws(() => validateOutboundTargets({ medical: "http://agency.example/intake" }), /HTTPS/);
+  });
+
+  it("replicates and re-verifies hash-addressed envelopes in a second store", async () => {
+    const ledgerDirectory = await makeLedgerDirectory();
+    const replicaDirectory = join(ledgerDirectory, "replica");
+    const envelope = await processWellbeingSignal(signal(), {
+      ledgerDir: ledgerDirectory,
+      replicaDir: replicaDirectory,
+      now: () => fixedTime
+    });
+    assert.equal(await new ImmutableFileLedger(replicaDirectory).verify(envelope.deterministic_hash), true);
+    assert.deepEqual(
+      await replicateAndVerifyLedger(ledgerDirectory, replicaDirectory),
+      { replicated: 0, verified: 1 }
+    );
   });
 });
