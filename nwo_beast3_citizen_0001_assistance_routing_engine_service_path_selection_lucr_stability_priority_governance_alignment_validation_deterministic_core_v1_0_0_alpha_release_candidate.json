@@ -11,6 +11,24 @@
     "system_opinion_engine": "system_opinion_engine_001.json",
     "dao_audit_hooks": "dao_audit_hooks_001.json",
     "evaluate_dao_audit_hooks_before_ledger_write": true,
+    "validation_layer": {
+      "required_checks": [
+        "privacy_compliant",
+        "consent_compliant",
+        "aggregate_compliant",
+        "human_origin_verified"
+      ],
+      "minimum_aggregate_count": 10,
+      "failure_reason_precedence": [
+        "privacy_violation",
+        "missing_consent",
+        "insufficient_aggregate_count",
+        "human_origin_unverified"
+      ],
+      "all_checks_must_pass_before_routing": true,
+      "failure_action": "reject_and_create_rejection_envelope",
+      "rejection_envelope_must_exclude_raw_signal_and_personal_data": true
+    },
     "program_300_layer_governance": {
       "municipal": {
         "requires_documents": [
@@ -35,9 +53,101 @@
         "inherits_from": "county",
         "requires_system_opinion": true,
         "requires_dao_audit_hook_triggered": true
+      },
+      "federal": {
+        "inherits_from": "state",
+        "validates_state_escalations": true,
+        "checks": [
+          "system_opinion.dao_alignment.lucr_stability_impact"
+        ]
+      },
+      "dao": {
+        "inherits_from": "federal",
+        "reconciles_governance_outcomes": true,
+        "ingests_quarterly_audit_records": true,
+        "anchors_envelopes_to_ledger": true
+      }
+    },
+    "routing_envelope_contract": {
+      "every_envelope_references": [
+        "system_law_constitution_001.json",
+        "munisible_task_force_governance_84.json"
+      ],
+      "required_fields": [
+        "envelope_id",
+        "governance_documents",
+        "input_signal",
+        "validation",
+        "routing_decision",
+        "system_opinion",
+        "audit",
+        "ledger_entry"
+      ],
+      "input_signal_allowlist": [
+        "signal_type",
+        "aggregate_count",
+        "lucr_stability"
+      ],
+      "rejection_envelope_contract": {
+        "routing_decision": "reject",
+        "required_validation_fields": [
+          "privacy_compliant",
+          "consent_compliant",
+          "aggregate_compliant",
+          "human_origin_verified"
+        ],
+        "ledger_category": "rejected_payload",
+        "dao_review_required": true,
+        "must_exclude_raw_signal_and_personal_data": true
+      },
+      "ledger_entry_fields": [
+        "category",
+        "governance_document",
+        "audit_cycle",
+        "flags",
+        "deterministic_hash"
+      ],
+      "ledger_policy": {
+        "immutable": true,
+        "hash_algorithm": "SHA-256",
+        "serialization": "RFC 8785 JSON Canonicalization Scheme",
+        "envelope_id_derivation": "SHA-256 of canonical envelope excluding envelope_id and ledger_entry.deterministic_hash",
+        "hash_excludes_fields": [
+          "envelope_id",
+          "ledger_entry.deterministic_hash"
+        ],
+        "write_after_audit_hook_evaluation": true,
+        "raw_signal_or_personal_data_permitted": false
       }
     },
     "routing_envelope": {
+      "envelope_id": "sha256:computed_from_canonical_envelope",
+      "governance_documents": [
+        "system_law_constitution_001.json",
+        "munisible_task_force_governance_84.json"
+      ],
+      "input_signal": {
+        "signal_type": "food_insecurity",
+        "aggregate_count": 12
+      },
+      "validation": {
+        "privacy_compliant": true,
+        "consent_compliant": true,
+        "aggregate_compliant": true,
+        "human_origin_verified": true
+      },
+      "routing_decision": {
+        "decision": "route",
+        "primary_service_path": "food",
+        "secondary_paths": [
+          "shelter",
+          "community_orgs"
+        ],
+        "escalation_level": "municipal",
+        "layer_propagation": [
+          "municipal"
+        ]
+      },
       "system_opinion": {
         "evaluation": "Community wellbeing indicators show increased food insecurity.",
         "basis": {
@@ -59,6 +169,19 @@
           "wellbeing_priority_alignment": true,
           "audit_required": false
         }
+      },
+      "audit": {
+        "triggered_hooks": [],
+        "dao_review_required": false,
+        "audit_cycle": "quarterly"
+      },
+      "ledger_entry": {
+        "category": "community_wellbeing",
+        "governance_document": "munisible_task_force_governance_84.json",
+        "audit_cycle": "quarterly",
+        "flags": [],
+        "deterministic_hash": "computed_sha256_canonical_envelope",
+        "immutable": true
       }
     },
     "privacy_and_voluntary_constraints": {

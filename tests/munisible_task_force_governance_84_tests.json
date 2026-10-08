@@ -18,11 +18,18 @@
           "community_orgs"
         ],
         "routing_envelope": {
+          "governance_documents": [
+            "system_law_constitution_001.json",
+            "munisible_task_force_governance_84.json"
+          ],
           "input_signal": {
             "aggregate_count": 12
           },
           "validation": {
-            "aggregate_compliant": true
+            "privacy_compliant": true,
+            "consent_compliant": true,
+            "aggregate_compliant": true,
+            "human_origin_verified": true
           },
           "routing_decision": {
             "primary_service_path": "food"
@@ -48,6 +55,19 @@
               "wellbeing_priority_alignment": true,
               "audit_required": false
             }
+          },
+          "audit": {
+            "triggered_hooks": [],
+            "dao_review_required": false,
+            "audit_cycle": "quarterly"
+          },
+          "ledger_entry": {
+            "category": "community_wellbeing",
+            "governance_document": "munisible_task_force_governance_84.json",
+            "audit_cycle": "quarterly",
+            "flags": [],
+            "deterministic_hash": "computed_sha256_canonical_envelope",
+            "immutable": true
           }
         },
         "ledger_entry": {
@@ -70,6 +90,61 @@
       "expected": {
         "routing_decision": "reject",
         "reason": "violates_privacy_protocols",
+        "routing_envelope": {
+          "envelope_id": "sha256:computed_at_runtime",
+          "governance_documents": [
+            "system_law_constitution_001.json",
+            "munisible_task_force_governance_84.json"
+          ],
+          "input_signal": {
+            "signal_type": "housing_need"
+          },
+          "validation": {
+            "privacy_compliant": false,
+            "consent_compliant": true,
+            "aggregate_compliant": false,
+            "human_origin_verified": true
+          },
+          "routing_decision": {
+            "decision": "reject"
+          },
+          "system_opinion": {
+            "evaluation": "This routing envelope indicates a privacy violation; DAO review required.",
+            "basis": {
+              "triggered_rules": [
+                "privacy_rules",
+                "audit_rules"
+              ],
+              "supporting_envelope_fields": [
+                "validation.privacy_compliant"
+              ]
+            },
+            "recommended_action": "flag_for_dao_review",
+            "severity": "critical",
+            "dao_alignment": {
+              "lucr_stability_impact": "neutral",
+              "wellbeing_priority_alignment": false,
+              "audit_required": true
+            }
+          },
+          "audit": {
+            "triggered_hooks": [
+              "privacy_violation_hook"
+            ],
+            "dao_review_required": true,
+            "audit_cycle": "quarterly"
+          },
+          "ledger_entry": {
+            "category": "rejected_payload",
+            "governance_document": "munisible_task_force_governance_84.json",
+            "audit_cycle": "quarterly",
+            "flags": [
+              "privacy_violation"
+            ],
+            "deterministic_hash": "computed_sha256_canonical_envelope",
+            "immutable": true
+          }
+        },
         "ledger_entry": {
           "category": "rejected_payload",
           "document_anchor": "munisible_task_force_governance_84.json",
@@ -91,11 +166,122 @@
       "expected": {
         "routing_decision": "reject",
         "reason": "missing_consent",
+        "routing_envelope": {
+          "envelope_id": "sha256:computed_at_runtime",
+          "governance_documents": [
+            "system_law_constitution_001.json",
+            "munisible_task_force_governance_84.json"
+          ],
+          "input_signal": {
+            "signal_type": "medical_support"
+          },
+          "validation": {
+            "privacy_compliant": true,
+            "consent_compliant": false,
+            "aggregate_compliant": false,
+            "human_origin_verified": true
+          },
+          "routing_decision": {
+            "decision": "reject"
+          },
+          "system_opinion": {
+            "evaluation": "The signal is rejected because explicit consent is missing.",
+            "basis": {
+              "triggered_rules": [
+                "consent_rules",
+                "audit_rules"
+              ],
+              "supporting_envelope_fields": [
+                "validation.consent_compliant"
+              ]
+            },
+            "recommended_action": "flag_for_dao_review",
+            "severity": "critical",
+            "dao_alignment": {
+              "lucr_stability_impact": "neutral",
+              "wellbeing_priority_alignment": false,
+              "audit_required": true
+            }
+          },
+          "audit": {
+            "triggered_hooks": [
+              "consent_violation_hook"
+            ],
+            "dao_review_required": true,
+            "audit_cycle": "quarterly"
+          },
+          "ledger_entry": {
+            "category": "rejected_payload",
+            "governance_document": "munisible_task_force_governance_84.json",
+            "audit_cycle": "quarterly",
+            "flags": [
+              "consent_violation"
+            ],
+            "deterministic_hash": "computed_sha256_canonical_envelope",
+            "immutable": true
+          }
+        },
         "ledger_entry": {
           "category": "rejected_payload",
           "document_anchor": "munisible_task_force_governance_84.json",
           "consent_missing_flag": true,
           "dao_review_required": true
+        }
+      }
+    },
+    {
+      "name": "critical medical access signal propagates through governance layers",
+      "input": {
+        "signal_type": "medical_support",
+        "aggregate_count": 12,
+        "human_origin": true,
+        "consent_flag": true,
+        "contains_personal_identifiers": false,
+        "aggregate_only": true
+      },
+      "expected": {
+        "routing_decision": "route",
+        "routing_envelope": {
+          "validation": {
+            "privacy_compliant": true,
+            "consent_compliant": true,
+            "aggregate_compliant": true,
+            "human_origin_verified": true
+          },
+          "system_opinion": {
+            "recommended_action": "expand_medical_support",
+            "severity": "critical",
+            "dao_alignment": {
+              "audit_required": true
+            }
+          },
+          "audit": {
+            "triggered_hooks": [
+              "critical_opinion_hook",
+              "audit_required_alignment_hook"
+            ],
+            "dao_review_required": true,
+            "audit_cycle": "quarterly"
+          },
+          "routing_decision": {
+            "layer_propagation": [
+              "municipal",
+              "county",
+              "state",
+              "federal",
+              "dao"
+            ]
+          },
+          "ledger_entry": {
+            "category": "community_wellbeing",
+            "governance_document": "munisible_task_force_governance_84.json",
+            "audit_cycle": "quarterly",
+            "flags": [
+              "dao_review_required"
+            ],
+            "deterministic_hash": "computed_sha256_canonical_envelope",
+            "immutable": true
+          }
         }
       }
     }

@@ -12,6 +12,14 @@
       "audit_cycle": "quarterly"
     },
     {
+      "id": "consent_violation_hook",
+      "when": {
+        "validation.consent_compliant": false
+      },
+      "action": "flag_envelope_for_dao_review",
+      "audit_cycle": "quarterly"
+    },
+    {
       "id": "critical_opinion_hook",
       "when": {
         "system_opinion.severity": "critical"
@@ -23,6 +31,22 @@
       "id": "audit_required_alignment_hook",
       "when": {
         "system_opinion.dao_alignment.audit_required": true
+      },
+      "action": "flag_envelope_for_dao_review",
+      "audit_cycle": "quarterly"
+    },
+    {
+      "id": "lucr_instability_hook",
+      "when": {
+        "input_signal.lucr_stability": "degrading"
+      },
+      "action": "flag_envelope_for_dao_review",
+      "audit_cycle": "quarterly"
+    },
+    {
+      "id": "municipal_hazard_hook",
+      "when": {
+        "input_signal.signal_type": "municipal_hazard"
       },
       "action": "flag_envelope_for_dao_review",
       "audit_cycle": "quarterly"
