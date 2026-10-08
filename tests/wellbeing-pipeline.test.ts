@@ -6,6 +6,9 @@ import { afterEach, describe, it } from "node:test";
 import {
   ImmutableFileLedger,
   processWellbeingSignal,
+  validateSignal,
+  type Document84Config,
+  type SystemLawConstitution,
   type WellbeingSignal
 } from "../src/wellbeing-pipeline.ts";
 
@@ -30,11 +33,48 @@ function signal(overrides: Partial<WellbeingSignal> = {}): WellbeingSignal {
   };
 }
 
+async function loadValidationDocuments(): Promise<[SystemLawConstitution, Document84Config]> {
+  const [lawText, documentText] = await Promise.all([
+    readFile(new URL("../system_law_constitution_001.json", import.meta.url), "utf8"),
+    readFile(new URL("../munisible_task_force_governance_84.json", import.meta.url), "utf8")
+  ]);
+  return [JSON.parse(lawText), JSON.parse(documentText)];
+}
+
 afterEach(async () => {
   await Promise.all(ledgerDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
 describe("processWellbeingSignal", () => {
+  it("validates privacy, consent, origin, positive aggregate count, and Document 84 signal types", async () => {
+    const [law, doc84] = await loadValidationDocuments();
+    const valid = await validateSignal(signal(), law, doc84);
+    const noConsent = await validateSignal(signal({ consent_flag: false }), law, doc84);
+    const noHumanOrigin = await validateSignal(signal({ human_origin: false }), law, doc84);
+    const zeroCount = await validateSignal(signal({ aggregate_count: 0 }), law, doc84);
+    const negativeCount = await validateSignal(signal({ aggregate_count: -1 }), law, doc84);
+    const unknownType = await validateSignal(signal({ signal_type: "unknown" }), law, doc84);
+    const nonAggregate = await validateSignal(signal({ aggregate_only: false }), law, doc84);
+
+    assert.deepEqual(valid, {
+      privacy_compliant: true,
+      consent_compliant: true,
+      aggregate_compliant: true,
+      human_origin_verified: true,
+      rejection_reason: null
+    });
+    assert.equal(noConsent.consent_compliant, false);
+    assert.equal(noConsent.rejection_reason, "missing_consent");
+    assert.equal(noHumanOrigin.consent_compliant, false);
+    assert.equal(noHumanOrigin.human_origin_verified, false);
+    assert.equal(noHumanOrigin.rejection_reason, "human_origin_unverified");
+    assert.equal(zeroCount.aggregate_compliant, false);
+    assert.equal(negativeCount.aggregate_compliant, false);
+    assert.equal(unknownType.aggregate_compliant, false);
+    assert.equal(nonAggregate.privacy_compliant, false);
+    assert.equal(nonAggregate.aggregate_compliant, false);
+  });
+
   it("routes a valid aggregate signal and stores only a hashed, immutable envelope", async () => {
     const ledgerDir = await makeLedgerDirectory();
     const result = await processWellbeingSignal(signal(), { ledgerDir, now: () => fixedTime });
@@ -134,7 +174,7 @@ describe("processWellbeingSignal", () => {
       signal({ aggregate_only: false }),
       { ledgerDir, now: () => fixedTime }
     );
-    assert.equal(nonAggregateResult.validation.rejection_reason, "non_aggregate_signal");
+    assert.equal(nonAggregateResult.validation.rejection_reason, "privacy_violation");
   });
 
   it("escalates critical medical opinions through state, federal, and DAO review", async () => {
@@ -179,7 +219,7 @@ describe("processWellbeingSignal", () => {
   it("rejects malformed runtime inputs before envelope construction", async () => {
     const ledgerDir = await makeLedgerDirectory();
     await assert.rejects(
-      processWellbeingSignal(signal({ aggregate_count: -1 }), { ledgerDir }),
+      processWellbeingSignal(signal({ aggregate_count: Number.NaN }), { ledgerDir }),
       /WellbeingSignal contract/
     );
     assert.deepEqual(await readdir(ledgerDir), []);

@@ -22,9 +22,10 @@
       "failure_reason_precedence": [
         "privacy_violation",
         "missing_consent",
+        "human_origin_unverified",
         "non_aggregate_signal",
         "insufficient_aggregate_count",
-        "human_origin_unverified"
+        "unsupported_signal_type"
       ],
       "all_checks_must_pass_before_routing": true,
       "failure_action": "reject_and_create_rejection_envelope",

@@ -20,6 +20,27 @@ export interface ValidationResult {
   rejection_reason: string | null;
 }
 
+export interface SystemLawConstitution {
+  privacy_rules: {
+    no_personal_identifiers: boolean;
+    aggregate_only_required: boolean;
+  };
+  consent_rules: {
+    human_origin_required: boolean;
+    explicit_consent_required: boolean;
+  };
+}
+
+export interface Document84Config {
+  allowed_signal_types: string[];
+  privacy_protocols: {
+    explicit_consent_required: boolean;
+    participation_is_voluntary: boolean;
+    personal_identifiers_stored: boolean;
+    individual_level_data_entered_into_routing: boolean;
+  };
+}
+
 export interface RoutingDecision {
   status: "accepted" | "rejected";
   primary_service_path: string | null;
@@ -138,6 +159,15 @@ const SEVERITY_RANK: Record<SystemOpinion["severity"], number> = {
   critical: 3
 };
 
+const DEFAULT_FAILURE_REASON_PRECEDENCE = [
+  "privacy_violation",
+  "missing_consent",
+  "non_aggregate_signal",
+  "insufficient_aggregate_count",
+  "human_origin_unverified",
+  "unsupported_signal_type"
+];
+
 async function readJson(filename: string, directory: string): Promise<JsonObject> {
   const contents = await readFile(join(directory, filename), "utf8");
   const parsed: unknown = JSON.parse(contents);
@@ -205,13 +235,18 @@ async function loadGovernanceConfig(configDir: string): Promise<GovernanceConfig
   };
 }
 
-function validateSignal(signal: WellbeingSignal, config: GovernanceConfig): ValidationResult {
+export async function validateSignal(
+  signal: WellbeingSignal,
+  law: SystemLawConstitution,
+  doc84: Document84Config,
+  minimumAggregateCount = 1,
+  failureReasonPrecedence = DEFAULT_FAILURE_REASON_PRECEDENCE
+): Promise<ValidationResult> {
   if (
     !signal ||
     typeof signal !== "object" ||
     typeof signal.signal_type !== "string" ||
     !Number.isSafeInteger(signal.aggregate_count) ||
-    signal.aggregate_count < 0 ||
     typeof signal.consent_flag !== "boolean" ||
     typeof signal.contains_personal_identifiers !== "boolean" ||
     typeof signal.aggregate_only !== "boolean" ||
@@ -221,10 +256,16 @@ function validateSignal(signal: WellbeingSignal, config: GovernanceConfig): Vali
   ) {
     throw new TypeError("Signal does not match the WellbeingSignal contract");
   }
-
-  const minimumCount = config.router.validation_layer.minimum_aggregate_count;
-  if (!Number.isSafeInteger(minimumCount) || minimumCount < 1) {
-    throw new TypeError("Routing config must define a positive minimum aggregate count");
+  if (
+    !law?.privacy_rules ||
+    !law?.consent_rules ||
+    !doc84?.privacy_protocols ||
+    !Array.isArray(doc84.allowed_signal_types)
+  ) {
+    throw new TypeError("System Law or Document 84 is missing validation rules");
+  }
+  if (!Number.isSafeInteger(minimumAggregateCount) || minimumAggregateCount < 1) {
+    throw new TypeError("Minimum aggregate count must be a positive safe integer");
   }
 
   const allowedFields = new Set([
@@ -237,22 +278,36 @@ function validateSignal(signal: WellbeingSignal, config: GovernanceConfig): Vali
     "lucr_stability"
   ]);
   const hasUnexpectedFields = Object.keys(signal).some((field) => !allowedFields.has(field));
-  const privacyCompliant = !signal.contains_personal_identifiers && !hasUnexpectedFields;
-  const consentCompliant = signal.consent_flag;
-  const aggregateCompliant = signal.aggregate_only && signal.aggregate_count >= minimumCount;
-  const humanOriginVerified = signal.human_origin;
+  const privacyCompliant =
+    (law.privacy_rules.no_personal_identifiers !== true || !signal.contains_personal_identifiers) &&
+    (law.privacy_rules.aggregate_only_required !== true || signal.aggregate_only) &&
+    !hasUnexpectedFields;
+  const humanOriginVerified =
+    law.consent_rules.human_origin_required !== true || signal.human_origin;
+  const consentCompliant =
+    humanOriginVerified &&
+    (law.consent_rules.explicit_consent_required !== true || signal.consent_flag);
+  const aggregateCompliant =
+    signal.aggregate_count > 0 &&
+    signal.aggregate_count >= minimumAggregateCount &&
+    signal.aggregate_only &&
+    doc84.allowed_signal_types.includes(signal.signal_type);
   const reasons = new Set<string>();
 
   if (!privacyCompliant) reasons.add("privacy_violation");
-  if (!consentCompliant) reasons.add("missing_consent");
+  if (!consentCompliant) {
+    reasons.add(humanOriginVerified ? "missing_consent" : "human_origin_unverified");
+  }
   if (!signal.aggregate_only) reasons.add("non_aggregate_signal");
-  else if (signal.aggregate_count < minimumCount) reasons.add("insufficient_aggregate_count");
-  if (!humanOriginVerified) reasons.add("human_origin_unverified");
-  if (!SERVICE_BY_SIGNAL[signal.signal_type]) reasons.add("unsupported_signal_type");
+  else if (signal.aggregate_count <= 0 || signal.aggregate_count < minimumAggregateCount) {
+    reasons.add("insufficient_aggregate_count");
+  }
+  if (!doc84.allowed_signal_types.includes(signal.signal_type) || !SERVICE_BY_SIGNAL[signal.signal_type]) {
+    reasons.add("unsupported_signal_type");
+  }
 
-  const precedence: string[] = config.router.validation_layer.failure_reason_precedence;
   const rejectionReason =
-    precedence.find((reason) => reasons.has(reason)) ??
+    failureReasonPrecedence.find((reason) => reasons.has(reason)) ??
     (reasons.has("unsupported_signal_type") ? "unsupported_signal_type" : null);
   return {
     privacy_compliant: privacyCompliant,
@@ -526,7 +581,13 @@ export async function processWellbeingSignal(
 ): Promise<RoutingEnvelope> {
   const configDir = resolve(options.configDir ?? process.cwd());
   const config = await loadGovernanceConfig(configDir);
-  const validation = validateSignal(signal, config);
+  const validation = await validateSignal(
+    signal,
+    config.law as SystemLawConstitution,
+    config.document84 as Document84Config,
+    config.router.validation_layer.minimum_aggregate_count,
+    config.router.validation_layer.failure_reason_precedence
+  );
   const routingDecision = routeSignal(signal, validation, config);
   const systemOpinion = evaluateOpinion(signal, validation, config);
   const safeInputSignal: RoutingEnvelope["input_signal"] = {

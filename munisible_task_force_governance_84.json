@@ -62,6 +62,18 @@
       "individual risk scores"
     ]
   },
+  "allowed_signal_types": [
+    "food_insecurity",
+    "shelter_need",
+    "housing_need",
+    "medical_support",
+    "social_services",
+    "community_need",
+    "resource_gap",
+    "municipal_hazard",
+    "infrastructure_condition",
+    "service_availability"
+  ],
   "routing_rules": {
     "program": 300,
     "mode": "deterministic",
