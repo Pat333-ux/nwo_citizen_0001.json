@@ -109,7 +109,7 @@ export interface RoutingEnvelope {
 
 type JsonObject = Record<string, any>;
 
-interface GovernanceConfig {
+export interface WellbeingRuntimeConfig {
   law: JsonObject;
   document84: JsonObject;
   router: JsonObject;
@@ -142,10 +142,11 @@ export interface DaoAuditHooksConfig {
   }>;
 }
 
-interface PipelineOptions {
+export interface PipelineOptions {
   configDir?: string;
   ledgerDir?: string;
   now?: () => Date;
+  runtimeConfig?: WellbeingRuntimeConfig;
 }
 
 export interface LedgerWriter {
@@ -170,7 +171,9 @@ async function readJson(filename: string, directory: string): Promise<JsonObject
   return parsed as JsonObject;
 }
 
-async function loadGovernanceConfig(configDir: string): Promise<GovernanceConfig> {
+export async function loadWellbeingRuntimeConfig(
+  configDir = process.cwd()
+): Promise<WellbeingRuntimeConfig> {
   const baseDir = resolve(configDir);
   const routingArtifact = await readJson(
     "nwo_beast3_citizen_0001_assistance_routing_engine_service_path_selection_lucr_stability_priority_governance_alignment_validation_deterministic_core_v1_0_0_alpha_release_candidate.json",
@@ -582,6 +585,13 @@ export class ImmutableFileLedger implements LedgerWriter {
       return false;
     }
   }
+
+  async read(deterministicHash: string): Promise<RoutingEnvelope | null> {
+    if (!(await this.verify(deterministicHash))) return null;
+    return JSON.parse(
+      await readFile(join(this.directory, `${deterministicHash}.json`), "utf8")
+    ) as RoutingEnvelope;
+  }
 }
 
 export async function processWellbeingSignal(
@@ -589,7 +599,7 @@ export async function processWellbeingSignal(
   options: PipelineOptions = {}
 ): Promise<RoutingEnvelope> {
   const configDir = resolve(options.configDir ?? process.cwd());
-  const config = await loadGovernanceConfig(configDir);
+  const config = options.runtimeConfig ?? await loadWellbeingRuntimeConfig(configDir);
   const validation = await validateSignal(
     signal,
     config.law as SystemLawConstitution,
