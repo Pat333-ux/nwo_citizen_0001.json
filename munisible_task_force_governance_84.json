@@ -1,0 +1,160 @@
+{
+  "document_id": 84,
+  "document_title": "Munisible Task Force — Governance Framework",
+  "task_force_name": "Munisible Task Force",
+  "version": "1.0.0",
+  "status": "proposed",
+  "mission": {
+    "purpose": "Support community wellbeing through voluntary participation, service referrals, and aggregate, non-identifying civic data.",
+    "objectives": [
+      "Support community members in accessing services",
+      "Identify service availability and infrastructure gaps",
+      "Route civic issues to appropriate service organizations",
+      "Produce aggregate wellbeing metrics for civic improvement",
+      "Align municipal, county, state, and DAO governance"
+    ],
+    "prohibited_activities": [
+      "Informant recruitment or use",
+      "Surveillance or individual tracking",
+      "Individual risk scoring or profiling",
+      "Coercive or mandatory participation"
+    ]
+  },
+  "scope": {
+    "levels": [
+      "municipal",
+      "county",
+      "state",
+      "dao"
+    ],
+    "primary_level": "municipal",
+    "data_purpose": "Civic improvement and voluntary service referral only",
+    "individual_records_permitted": false,
+    "location_tracking_permitted": false
+  },
+  "privacy_protocols": {
+    "explicit_consent_required": true,
+    "consent_is_revocable": true,
+    "participation_is_voluntary": true,
+    "personal_identifiers_collected": false,
+    "personal_identifiers_stored": false,
+    "individual_level_data_entered_into_routing": false,
+    "data_handling": [
+      "Anonymize signals at collection",
+      "Aggregate signals before analysis, routing, or ledger anchoring",
+      "Suppress aggregate results with fewer than 10 contributions",
+      "Use coarse geographic categories only; do not record precise locations",
+      "Do not retain raw submissions or link submissions across interactions"
+    ],
+    "allowed_data_categories": [
+      "service availability",
+      "infrastructure conditions",
+      "aggregate community needs",
+      "environmental hazards",
+      "non-personal wellbeing indicators"
+    ],
+    "disallowed_data": [
+      "names or contact details",
+      "persistent identifiers",
+      "individual-level health or vulnerability records",
+      "precise location or movement data",
+      "informant identities",
+      "individual risk scores"
+    ]
+  },
+  "routing_rules": {
+    "program": 300,
+    "mode": "deterministic",
+    "unit_of_routing": "anonymized aggregate issue",
+    "steps": [
+      {
+        "level": "municipal",
+        "action": "Route aggregate service or infrastructure issues to the relevant municipal service."
+      },
+      {
+        "level": "county",
+        "action": "Route issues outside municipal scope to the relevant county service."
+      },
+      {
+        "level": "state",
+        "action": "Escalate cross-county or state-program issues to the relevant state service."
+      },
+      {
+        "level": "dao",
+        "action": "Review governance compliance and aggregate outcomes; do not direct action toward individuals."
+      }
+    ],
+    "decision_constraints": [
+      "Route by issue category and service jurisdiction only",
+      "Do not infer identity, intent, or individual risk",
+      "Offer referrals without requiring participation or disclosure",
+      "Log routing outcomes using aggregate data only"
+    ]
+  },
+  "modules": {
+    "community_intake": {
+      "function": "Accept voluntary, anonymous community wellbeing signals.",
+      "stores_personal_data": false
+    },
+    "civic_signal_processor": {
+      "function": "Validate, anonymize, and aggregate submitted signals.",
+      "outputs_individual_profiles": false
+    },
+    "routing_engine": {
+      "function": "Route aggregate civic issues to the appropriate municipal, county, state, or DAO destination.",
+      "deterministic": true
+    },
+    "resource_referral_engine": {
+      "function": "Provide optional information about shelters, food programs, medical clinics, social services, and community organizations.",
+      "records_referral_recipients": false
+    },
+    "governance_ledger_anchor": {
+      "function": "Anchor aggregate metrics, routing decisions, audit records, and compliance checks.",
+      "stores_personal_data": false
+    }
+  },
+  "dao_compliance": {
+    "privacy_standards_required": true,
+    "wellbeing_first": true,
+    "lucr_alignment": [
+      "growth",
+      "stability",
+      "value"
+    ],
+    "required_checks": [
+      "Consent and voluntariness",
+      "Anonymization and aggregation",
+      "Routing integrity",
+      "Personal-data exclusion",
+      "Service-referral accessibility"
+    ]
+  },
+  "audit_cycle": {
+    "frequency": "quarterly",
+    "audit_scope": [
+      "Privacy compliance",
+      "Consent and opt-out practices",
+      "Aggregate data handling",
+      "Routing integrity",
+      "Ledger contents and access controls",
+      "Wellbeing-first decision logic"
+    ],
+    "findings_must_be_recorded": true,
+    "audit_records_must_exclude_personal_data": true
+  },
+  "ledger_anchors": {
+    "permitted_contents": [
+      "Threshold-qualified aggregate metrics",
+      "Issue categories and destination levels",
+      "Timestamped routing decisions",
+      "Audit outcomes and DAO compliance checks"
+    ],
+    "prohibited_contents": [
+      "Raw submissions",
+      "Personal identifiers",
+      "Individual participation or referral records",
+      "Precise locations"
+    ],
+    "append_only_audit_log": true
+  }
+}
