@@ -1,0 +1,69 @@
+{
+  "document_anchor": "munisible_task_force_governance_84.json",
+  "cases": [
+    {
+      "name": "valid aggregate wellbeing signal",
+      "input": {
+        "signal_type": "food_insecurity",
+        "aggregate_count": 12,
+        "consent_flag": true,
+        "contains_personal_identifiers": false,
+        "aggregate_only": true
+      },
+      "expected": {
+        "routing_decision": "route",
+        "primary_service_path": "food",
+        "secondary_paths": [
+          "shelter",
+          "community_orgs"
+        ],
+        "ledger_entry": {
+          "category": "community_wellbeing",
+          "document_anchor": "munisible_task_force_governance_84.json",
+          "privacy_compliant": true,
+          "dao_review_required": false
+        }
+      }
+    },
+    {
+      "name": "reject payload containing personal identifiers",
+      "input": {
+        "signal_type": "housing_need",
+        "aggregate_count": 1,
+        "consent_flag": true,
+        "contains_personal_identifiers": true,
+        "aggregate_only": false
+      },
+      "expected": {
+        "routing_decision": "reject",
+        "reason": "violates_privacy_protocols",
+        "ledger_entry": {
+          "category": "rejected_payload",
+          "document_anchor": "munisible_task_force_governance_84.json",
+          "privacy_violation_flag": true,
+          "dao_review_required": true
+        }
+      }
+    },
+    {
+      "name": "reject signal missing consent",
+      "input": {
+        "signal_type": "medical_support",
+        "aggregate_count": 5,
+        "consent_flag": false,
+        "contains_personal_identifiers": false,
+        "aggregate_only": true
+      },
+      "expected": {
+        "routing_decision": "reject",
+        "reason": "missing_consent",
+        "ledger_entry": {
+          "category": "rejected_payload",
+          "document_anchor": "munisible_task_force_governance_84.json",
+          "consent_missing_flag": true,
+          "dao_review_required": true
+        }
+      }
+    }
+  ]
+}

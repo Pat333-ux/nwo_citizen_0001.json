@@ -5,7 +5,38 @@
   "routing": {
     "service_paths": [],
     "lucr_priority_score": 0.0,
-    "governance_alignment": false
+    "governance_alignment": false,
+    "community_wellbeing_governance_document": "munisible_task_force_governance_84.json",
+    "privacy_and_voluntary_constraints": {
+      "rules": [
+        {
+          "condition": "aggregate_only",
+          "operator": "equals",
+          "value": true,
+          "failure_action": "reject"
+        },
+        {
+          "condition": "contains_personal_identifiers",
+          "operator": "equals",
+          "value": true,
+          "failure_action": "reject"
+        },
+        {
+          "condition": "human_origin",
+          "requires": {
+            "consent_flag": true
+          },
+          "failure_action": "reject"
+        }
+      ]
+    },
+    "preferred_service_path_for_wellbeing_signals": [
+      "shelter",
+      "food",
+      "medical",
+      "social_services",
+      "community_orgs"
+    ]
   },
   "eligibility": {
     "verified": false,
