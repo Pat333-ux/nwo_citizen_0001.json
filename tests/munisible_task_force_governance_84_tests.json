@@ -50,6 +50,7 @@
       "input": {
         "signal_type": "medical_support",
         "aggregate_count": 5,
+        "human_origin": true,
         "consent_flag": false,
         "contains_personal_identifiers": false,
         "aggregate_only": true
