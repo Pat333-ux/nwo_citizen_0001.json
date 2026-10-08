@@ -87,100 +87,6 @@ describe("processWellbeingSignal", () => {
       rejection_reason: null
     });
 
-    describe("wellbeing HTTP service", () => {
-      async function startService(options: { maxBodyBytes?: number; maxBatchSize?: number } = {}) {
-        const ledgerDir = await makeLedgerDirectory();
-        const server = await startWellbeingHttpService({
-          configDir: process.cwd(),
-          ledgerDir,
-          host: "127.0.0.1",
-          port: 0,
-          now: () => fixedTime,
-          ...options
-        });
-        httpServers.push(server);
-        const address = server.address();
-        assert.ok(address && typeof address !== "string");
-        return { baseUrl: `http://127.0.0.1:${address.port}`, ledgerDir };
-      }
-
-      it("ingests signals, returns only redacted envelopes, and supports verified ledger retrieval", async () => {
-        const { baseUrl } = await startService();
-        const response = await fetch(`${baseUrl}/signals`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(signal())
-        });
-        const envelope = await response.json() as Awaited<ReturnType<typeof processWellbeingSignal>>;
-        assert.equal(response.status, 200);
-        assert.deepEqual(Object.keys(envelope.input_signal).sort(), ["aggregate_count", "signal_type"]);
-
-        const recordResponse = await fetch(`${baseUrl}/ledger/${envelope.deterministic_hash}`);
-        assert.equal(recordResponse.status, 200);
-        assert.equal((await recordResponse.json() as typeof envelope).deterministic_hash, envelope.deterministic_hash);
-        const verification = await fetch(`${baseUrl}/ledger/${envelope.deterministic_hash}/verify`);
-        assert.deepEqual(await verification.json(), {
-          deterministic_hash: envelope.deterministic_hash,
-          valid: true
-        });
-        assert.deepEqual(await (await fetch(`${baseUrl}/metrics`)).json(), {
-          signals_received: 1,
-          accepted: 1,
-          rejected: 0,
-          critical_opinions: 0,
-          dao_reviews: 0,
-          last_processed_at: fixedTime.toISOString()
-        });
-      });
-
-      it("prevalidates a batch before processing and processes valid batches in order", async () => {
-        const { baseUrl, ledgerDir } = await startService({ maxBatchSize: 3 });
-        const malformed = await fetch(`${baseUrl}/signals/batch`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify([signal(), { ...signal(), aggregate_count: "12" }])
-        });
-        assert.equal(malformed.status, 400);
-        assert.deepEqual(await readdir(ledgerDir), []);
-
-        const batch = await fetch(`${baseUrl}/signals/batch`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify([
-            signal(),
-            signal({ consent_flag: false, signal_type: "shelter_need" })
-          ])
-        });
-        const { envelopes } = await batch.json() as {
-          envelopes: Awaited<ReturnType<typeof processWellbeingSignal>>[];
-        };
-        assert.equal(batch.status, 200);
-        assert.deepEqual(envelopes.map((envelope) => envelope.routing_decision.status), ["accepted", "rejected"]);
-        assert.deepEqual(envelopes.map((envelope) => envelope.input_signal.aggregate_count), [12, undefined]);
-        assert.deepEqual(await (await fetch(`${baseUrl}/metrics`)).json(), {
-          signals_received: 2,
-          accepted: 1,
-          rejected: 1,
-          critical_opinions: 1,
-          dao_reviews: 1,
-          last_processed_at: fixedTime.toISOString()
-        });
-      });
-
-      it("bounds request sizes and returns safe client errors", async () => {
-        const { baseUrl } = await startService({ maxBodyBytes: 20 });
-        const oversized = await fetch(`${baseUrl}/signals`, {
-          method: "POST",
-          body: JSON.stringify(signal())
-        });
-        assert.equal(oversized.status, 413);
-        assert.deepEqual(await oversized.json(), {
-          error: "Request body exceeds the configured limit"
-        });
-        const missing = await fetch(`${baseUrl}/ledger/${"a".repeat(64)}`);
-        assert.equal(missing.status, 404);
-      });
-    });
     assert.equal(noConsent.consent_compliant, false);
     assert.equal(noConsent.rejection_reason, "missing_consent");
     assert.equal(noHumanOrigin.consent_compliant, false);
@@ -397,5 +303,100 @@ describe("processWellbeingSignal", () => {
       /WellbeingSignal contract/
     );
     assert.deepEqual(await readdir(ledgerDir), []);
+  });
+});
+
+describe("wellbeing HTTP service", () => {
+  async function startService(options: { maxBodyBytes?: number; maxBatchSize?: number } = {}) {
+    const ledgerDir = await makeLedgerDirectory();
+    const server = await startWellbeingHttpService({
+      configDir: process.cwd(),
+      ledgerDir,
+      host: "127.0.0.1",
+      port: 0,
+      now: () => fixedTime,
+      ...options
+    });
+    httpServers.push(server);
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    return { baseUrl: `http://127.0.0.1:${address.port}`, ledgerDir };
+  }
+
+  it("ingests signals, returns only redacted envelopes, and supports verified ledger retrieval", async () => {
+    const { baseUrl } = await startService();
+    const response = await fetch(`${baseUrl}/signals`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(signal())
+    });
+    const envelope = await response.json() as Awaited<ReturnType<typeof processWellbeingSignal>>;
+    assert.equal(response.status, 200);
+    assert.deepEqual(Object.keys(envelope.input_signal).sort(), ["aggregate_count", "signal_type"]);
+
+    const recordResponse = await fetch(`${baseUrl}/ledger/${envelope.deterministic_hash}`);
+    assert.equal(recordResponse.status, 200);
+    assert.equal((await recordResponse.json() as typeof envelope).deterministic_hash, envelope.deterministic_hash);
+    const verification = await fetch(`${baseUrl}/ledger/${envelope.deterministic_hash}/verify`);
+    assert.deepEqual(await verification.json(), {
+      deterministic_hash: envelope.deterministic_hash,
+      valid: true
+    });
+    assert.deepEqual(await (await fetch(`${baseUrl}/metrics`)).json(), {
+      signals_received: 1,
+      accepted: 1,
+      rejected: 0,
+      critical_opinions: 0,
+      dao_reviews: 0,
+      last_processed_at: fixedTime.toISOString()
+    });
+  });
+
+  it("prevalidates a batch before processing and processes valid batches in order", async () => {
+    const { baseUrl, ledgerDir } = await startService({ maxBatchSize: 3 });
+    const malformed = await fetch(`${baseUrl}/signals/batch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([signal(), { ...signal(), aggregate_count: "12" }])
+    });
+    assert.equal(malformed.status, 400);
+    assert.deepEqual(await readdir(ledgerDir), []);
+
+    const batch = await fetch(`${baseUrl}/signals/batch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([
+        signal(),
+        signal({ consent_flag: false, signal_type: "shelter_need" })
+      ])
+    });
+    const { envelopes } = await batch.json() as {
+      envelopes: Awaited<ReturnType<typeof processWellbeingSignal>>[];
+    };
+    assert.equal(batch.status, 200);
+    assert.deepEqual(envelopes.map((envelope) => envelope.routing_decision.status), ["accepted", "rejected"]);
+    assert.deepEqual(envelopes.map((envelope) => envelope.input_signal.aggregate_count), [12, undefined]);
+    assert.deepEqual(await (await fetch(`${baseUrl}/metrics`)).json(), {
+      signals_received: 2,
+      accepted: 1,
+      rejected: 1,
+      critical_opinions: 0,
+      dao_reviews: 1,
+      last_processed_at: fixedTime.toISOString()
+    });
+  });
+
+  it("bounds request sizes and returns safe client errors", async () => {
+    const { baseUrl } = await startService({ maxBodyBytes: 20 });
+    const oversized = await fetch(`${baseUrl}/signals`, {
+      method: "POST",
+      body: JSON.stringify(signal())
+    });
+    assert.equal(oversized.status, 413);
+    assert.deepEqual(await oversized.json(), {
+      error: "Request body exceeds the configured limit"
+    });
+    const missing = await fetch(`${baseUrl}/ledger/${"a".repeat(64)}`);
+    assert.equal(missing.status, 404);
   });
 });

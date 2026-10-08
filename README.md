@@ -44,3 +44,14 @@ Defines the governance framework for the Munisible Task Force as a voluntary, pr
 Call `processWellbeingSignal(signal, { ledgerDir })` with the required signal fields: `signal_type`, `aggregate_count`, `consent_flag`, `contains_personal_identifiers`, `aggregate_only`, and `human_origin`. `validateSignal(signal, law, doc84, minimumAggregateCount?)` is also exported; it applies the System Law privacy/consent rules and requires a positive count, the configured minimum count, and a signal type listed in Document 84. Document 84's `allowed_signal_types` is the routing allowlist. Rejection reasons follow the configured privacy → consent/origin → aggregate → signal-type precedence. The optional `lucr_stability` input accepts `stable`, `degrading`, or `improving`.
 
 The pipeline persists redacted, hash-addressed JSON records under `.beast3-ledger/` by default (or a caller-supplied `ledgerDir`). Records are created without overwrite, set read-only, and can be checked with `ImmutableFileLedger.verify`. This is local, tamper-evident file storage—not a distributed or administrator-proof immutable ledger—and the runtime does not contact municipal agencies, deliver referrals, or perform DAO governance actions.
+
+### Local HTTP service
+
+Run `npm start` from the repository root. The service loads and checks System Law, Document 84, the routing artifact, Opinion Engine, and DAO audit hooks before binding to `127.0.0.1:3000`; a configuration failure prevents startup. Configure `HOST`, `PORT`, `BEAST3_CONFIG_DIR`, and `BEAST3_LEDGER_DIR` with environment variables. The default loopback binding is intentional; deployments that expose the service beyond localhost must provide authentication, authorization, TLS, and network controls externally.
+
+- `POST /signals` accepts one signal and returns its redacted envelope.
+- `POST /signals/batch` accepts an ordered JSON array (maximum 100 signals per batch) and processes it sequentially. Ingress is capped at 64 KiB, and malformed batches are rejected before any item is processed.
+- `GET /health` reports readiness; `GET /metrics` returns in-memory aggregate lifecycle counters without signal labels or raw inputs.
+- `GET /ledger/:sha256` retrieves a record only when its content hash verifies; `GET /ledger/:sha256/verify` reports verification status.
+
+Requests are serialized through a process-local work queue. Routing and escalation remain deterministic policy evaluation over the configured municipal-to-DAO layers; this service does not publish to a durable message broker or contact public agencies. The existing quarterly audit hooks run per envelope, but a wall-clock quarterly scheduler/reporting workflow, external DAO reconciliation, and distributed ledger replication are not implemented. HTTP metrics are process-local and reset at restart.

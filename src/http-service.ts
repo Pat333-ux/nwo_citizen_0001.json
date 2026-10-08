@@ -32,8 +32,11 @@ interface ServiceMetrics {
 }
 
 class HttpInputError extends Error {
-  constructor(readonly statusCode: number, message: string) {
+  readonly statusCode: number;
+
+  constructor(statusCode: number, message: string) {
     super(message);
+    this.statusCode = statusCode;
   }
 }
 
@@ -75,13 +78,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function validateIngress(
+async function validateIngress(
   signal: unknown,
   config: WellbeingRuntimeConfig
-): asserts signal is WellbeingSignal {
+): Promise<void> {
   if (!isRecord(signal)) throw new HttpInputError(400, "Signal must be a JSON object");
   try {
-    validateSignal(
+    await validateSignal(
       signal as unknown as WellbeingSignal,
       config.law as unknown as SystemLawConstitution,
       config.document84 as unknown as Document84Config,
@@ -126,6 +129,12 @@ export async function createWellbeingHttpServer(
     dao_reviews: 0,
     last_processed_at: null
   };
+  let processingQueue = Promise.resolve();
+  const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
+    const result = processingQueue.then(task);
+    processingQueue = result.then(() => undefined, () => undefined);
+    return result;
+  };
   const processOptions: PipelineOptions = {
     ledgerDir,
     now: options.now,
@@ -151,15 +160,18 @@ export async function createWellbeingHttpServer(
         }
         const validSignals: WellbeingSignal[] = [];
         for (const signal of signals) {
-          validateIngress(signal, runtimeConfig);
-          validSignals.push(signal);
+          await validateIngress(signal, runtimeConfig);
+          validSignals.push(signal as WellbeingSignal);
         }
-        const envelopes = [];
-        for (const signal of validSignals) {
-          const envelope = await processWellbeingSignal(signal, processOptions);
-          updateMetrics(metrics, envelope);
-          envelopes.push(envelope);
-        }
+        const envelopes = await enqueue(async () => {
+          const processed = [];
+          for (const signal of validSignals) {
+            const envelope = await processWellbeingSignal(signal, processOptions);
+            updateMetrics(metrics, envelope);
+            processed.push(envelope);
+          }
+          return processed;
+        });
         sendJson(response, 200, pathname === "/signals" ? envelopes[0] : { envelopes });
         return;
       }
