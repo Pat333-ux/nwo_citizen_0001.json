@@ -25,5 +25,7 @@ Defines the governance framework for the Munisible Task Force as a voluntary, pr
 
 - `system_law_constitution_001.json` defines the deterministic privacy, consent, wellbeing, routing, audit, and ledger rules.
 - `system_opinion_engine_001.json` evaluates aggregate signals and routing compliance using explicit rules grounded in the constitution and Document 84.
-- The assistance routing engine references both artifacts. Opinions are rule-based evaluations and recommendations; they do not enable individual profiling or surveillance.
+- `dao_audit_hooks_001.json` flags privacy violations, critical opinions, and audit-required opinions for quarterly DAO review.
+- The assistance routing engine evaluates audit hooks before ledger writes and references these governance artifacts. Opinions are rule-based evaluations and recommendations; they do not enable individual profiling or surveillance.
 - The assistance routing envelope carries `system_opinion` with an evaluation, triggered rule basis, supporting envelope fields, recommended action, severity, and DAO alignment flags.
+- Program 300 governance is configured in the assistance router: municipal routing enforces System Law and Document 84; county escalation is limited to warning/critical opinions or audit-required opinions; state escalation requires an opinion and a triggered audit hook.

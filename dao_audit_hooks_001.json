@@ -1,0 +1,31 @@
+{
+  "module_id": "dao_audit_hooks_001",
+  "version": "1.0.0",
+  "description": "Hooks for flagging routing envelopes for DAO audit",
+  "hooks": [
+    {
+      "id": "privacy_violation_hook",
+      "when": {
+        "validation.privacy_compliant": false
+      },
+      "action": "flag_envelope_for_dao_review",
+      "audit_cycle": "quarterly"
+    },
+    {
+      "id": "critical_opinion_hook",
+      "when": {
+        "system_opinion.severity": "critical"
+      },
+      "action": "flag_envelope_for_dao_review",
+      "audit_cycle": "quarterly"
+    },
+    {
+      "id": "audit_required_alignment_hook",
+      "when": {
+        "system_opinion.dao_alignment.audit_required": true
+      },
+      "action": "flag_envelope_for_dao_review",
+      "audit_cycle": "quarterly"
+    }
+  ]
+}

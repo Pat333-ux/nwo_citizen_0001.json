@@ -9,6 +9,34 @@
     "community_wellbeing_governance_document": "munisible_task_force_governance_84.json",
     "system_law_constitution": "system_law_constitution_001.json",
     "system_opinion_engine": "system_opinion_engine_001.json",
+    "dao_audit_hooks": "dao_audit_hooks_001.json",
+    "evaluate_dao_audit_hooks_before_ledger_write": true,
+    "program_300_layer_governance": {
+      "municipal": {
+        "requires_documents": [
+          "system_law_constitution_001.json",
+          "munisible_task_force_governance_84.json"
+        ],
+        "enforce_rules": [
+          "privacy_rules",
+          "consent_rules",
+          "aggregate_only_required",
+          "wellbeing_rules"
+        ]
+      },
+      "county": {
+        "inherits_from": "municipal",
+        "escalation_conditions": [
+          "system_opinion.severity in ['warning','critical']",
+          "system_opinion.dao_alignment.audit_required = true"
+        ]
+      },
+      "state": {
+        "inherits_from": "county",
+        "requires_system_opinion": true,
+        "requires_dao_audit_hook_triggered": true
+      }
+    },
     "routing_envelope": {
       "system_opinion": {
         "evaluation": "Community wellbeing indicators show increased food insecurity.",

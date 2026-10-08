@@ -31,7 +31,69 @@
       "basis": [
         "wellbeing_rules",
         "routing_envelopes"
-      ]
+      ],
+      "severity": "warning",
+      "dao_alignment": {
+        "lucr_stability_impact": "positive",
+        "wellbeing_priority_alignment": true,
+        "audit_required": false
+      }
+    },
+    {
+      "id": "shelter_capacity_increase",
+      "when": {
+        "signal_type": "shelter_need",
+        "aggregate_count_min": 8
+      },
+      "opinion": "Shelter capacity should be increased.",
+      "recommended_action": "increase_shelter_capacity",
+      "basis": [
+        "wellbeing_rules",
+        "routing_envelopes"
+      ],
+      "severity": "warning",
+      "dao_alignment": {
+        "lucr_stability_impact": "positive",
+        "wellbeing_priority_alignment": true,
+        "audit_required": false
+      }
+    },
+    {
+      "id": "medical_access_alert",
+      "when": {
+        "signal_type": "medical_support",
+        "aggregate_count_min": 5
+      },
+      "opinion": "Community medical access appears insufficient.",
+      "recommended_action": "expand_medical_support",
+      "basis": [
+        "wellbeing_rules",
+        "audit_rules"
+      ],
+      "severity": "critical",
+      "dao_alignment": {
+        "lucr_stability_impact": "positive",
+        "wellbeing_priority_alignment": true,
+        "audit_required": true
+      }
+    },
+    {
+      "id": "lucr_instability_alert",
+      "when": {
+        "lucr_stability": "degrading"
+      },
+      "opinion": "LUCR stability is degrading; wellbeing investment should be increased.",
+      "recommended_action": "increase_wellbeing_investment",
+      "basis": [
+        "ledger_rules",
+        "wellbeing_rules"
+      ],
+      "severity": "critical",
+      "dao_alignment": {
+        "lucr_stability_impact": "positive",
+        "wellbeing_priority_alignment": true,
+        "audit_required": true
+      }
     },
     {
       "id": "privacy_violation_review",
@@ -43,7 +105,13 @@
       "basis": [
         "privacy_rules",
         "audit_rules"
-      ]
+      ],
+      "severity": "critical",
+      "dao_alignment": {
+        "lucr_stability_impact": "neutral",
+        "wellbeing_priority_alignment": false,
+        "audit_required": true
+      }
     }
   ]
 }
