@@ -5,5 +5,12 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@fastify/helmet": "^13.1.2",
+    "@fastify/jwt": "^10.2.4",
+    "argon2": "^0.45.1",
+    "fastify": "^5.12.5",
+    "pg": "^8.23.1"
   }
 }
