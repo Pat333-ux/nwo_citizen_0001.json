@@ -14,6 +14,18 @@ jobs:
       - run: docker build -t beast-api beast
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: beast
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ci-only-password@localhost:5432/beast
     defaults:
       run:
         working-directory: beast
@@ -23,6 +35,8 @@ jobs:
         with:
           node-version: "24"
       - run: npm ci
+      - name: Apply ledger migration
+        run: psql "$TEST_DATABASE_URL" -f db/001_ledger.sql
       - run: npm test
       - run: npm audit --audit-level=high
       - name: Generate SBOM
