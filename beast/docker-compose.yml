@@ -1,0 +1,17 @@
+# Local development only. Replace the placeholder secrets via environment/secret manager.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: beast
+    volumes:
+      - ./db/001_ledger.sql:/docker-entrypoint-initdb.d/001_ledger.sql:ro
+  api:
+    build: .
+    depends_on: [db]
+    ports: ["3000:3000"]
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/beast
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ chars)}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
