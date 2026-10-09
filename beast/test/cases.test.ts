@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { buildApp, hashPassword, type UserRecord } from "../src/server/app.ts";
+import { MemoryCaseStore } from "../src/server/caseStore.ts";
 import { CaseService } from "../src/server/cases.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
 
@@ -14,7 +15,7 @@ async function setup() {
   ]);
   const ledger = new LedgerService(new MemoryLedgerStore());
   const rules = JSON.parse(readFileSync(new URL("../src/rules/rules.json", import.meta.url), "utf8"));
-  const cases = new CaseService(ledger, randomBytes(32), rules, 2000);
+  const cases = new CaseService(ledger, new MemoryCaseStore(), randomBytes(32), rules, 2000);
   const app = await buildApp({ jwtSecret: "y".repeat(32), users, ledger, cases });
   const tok = async (u: string, p: string) =>
     (await app.inject({ method: "POST", url: "/v1/auth/login", payload: { username: u, password: p } })).json().token as string;

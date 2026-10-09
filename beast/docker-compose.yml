@@ -7,6 +7,7 @@ services:
       POSTGRES_DB: beast
     volumes:
       - ./db/001_ledger.sql:/docker-entrypoint-initdb.d/001_ledger.sql:ro
+      - ./db/002_cases.sql:/docker-entrypoint-initdb.d/002_cases.sql:ro
   api:
     build: .
     depends_on: [db]

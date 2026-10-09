@@ -21,3 +21,25 @@ test("postgres ledger: concurrent appends, verify, append-only", { skip: !url },
   await assert.rejects(pool.query("TRUNCATE ledger_records"), /append-only/);
   await pool.end();
 });
+
+test("postgres case store: workflow end-to-end, PII encrypted at rest", { skip: !url }, async () => {
+  const { randomBytes } = await import("node:crypto");
+  const { CaseService } = await import("../src/server/cases.ts");
+  const { PostgresCaseStore } = await import("../src/server/caseStore.ts");
+  const pool = new pg.Pool({ connectionString: url });
+  const ledger = new LedgerService(new PostgresLedgerStore(pool));
+  const svc = new CaseService(ledger, new PostgresCaseStore(pool), randomBytes(32),
+    [{ ruleId: "LOW_INCOME", field: "householdIncome", operator: "<", valueSource: "povertyLevel", service: "Food Assistance", reason: "Income below threshold" }], 2000);
+
+  const id = await svc.createIdentity("cw", { type: "citizen", jurisdiction: "US-IN", name: "Zed Plaintext", address: "9 Oak", email: "z@example.com" });
+  await svc.verifyIdentity("cw", id.id);
+  const app = await svc.createApplication("cw", { identityId: id.id, adults: 1, children: 1, monthlyIncome: 800, veteranStatus: false, disabilityStatus: false, housingStatus: "renting" });
+  for (const to of ["submitted", "in_review", "approved"] as const) await svc.transition("cw", app.familyId, to);
+  assert.equal((await svc.recommendations(app.familyId)).length, 1);
+  assert.ok((await svc.kpis()).approvals >= 1);
+  assert.deepEqual(await ledger.verify(), { valid: true });
+
+  const raw = await pool.query("SELECT encrypted_name FROM identity_pii WHERE identity_id = $1", [id.id]);
+  assert.equal(raw.rows[0].encrypted_name.includes("Zed"), false);
+  await pool.end();
+});
