@@ -64,6 +64,43 @@ paths:
                 properties:
                   valid: {type: boolean}
                   brokenAt: {type: integer}
+  /identities:
+    post:
+      summary: Create identity (caseworker). PII is stored encrypted, never in the ledger.
+      responses: {"201": {description: Created}}
+  /identities/{id}/verify:
+    post:
+      summary: Verify identity (caseworker)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "404": {description: Not found}}
+  /applications:
+    post:
+      summary: Create Family First application in draft (caseworker); identity must be verified
+      responses: {"201": {description: Created}, "409": {description: Identity not verified}}
+  /applications/{id}/submit:
+    post:
+      summary: draft to submitted
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /applications/{id}/start-review:
+    post:
+      summary: submitted or appealed to in_review
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /applications/{id}/decision:
+    post:
+      summary: Human decision, approved or denied (caseworker). Only valid from in_review.
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /applications/{id}/appeal:
+    post:
+      summary: denied to appealed
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /ledger/root:
+    get:
+      summary: Merkle root of ledger hashes (auditor), intended for external anchoring; contains no PII
+      responses: {"200": {description: OK}}
   /kpis:
     get:
       summary: Aggregate KPIs (read-only)

@@ -1,4 +1,6 @@
 import { buildApp, hashPassword, type UserRecord } from "./app.ts";
+import { readFileSync } from "node:fs";
+import { CaseService } from "./cases.ts";
 import { LedgerService, PostgresLedgerStore } from "../ledger/store.ts";
 
 const secret = process.env.JWT_SECRET;
@@ -15,10 +17,18 @@ if (process.env.BOOTSTRAP_ADMIN_PASSWORD) {
   });
 }
 
+const piiKeyHex = process.env.PII_KEY_HEX;
+if (!piiKeyHex || !/^[0-9a-f]{64}$/i.test(piiKeyHex)) throw new Error("PII_KEY_HEX (64 hex chars) is required");
+const poverty = Number(process.env.POVERTY_LEVEL_MONTHLY);
+if (!Number.isFinite(poverty) || poverty <= 0) throw new Error("POVERTY_LEVEL_MONTHLY is required (program-supplied)");
+const rules = JSON.parse(readFileSync(new URL("../rules/rules.json", import.meta.url), "utf8"));
+const ledger = new LedgerService(PostgresLedgerStore.fromEnv());
+
 const app = await buildApp({
+  cases: new CaseService(ledger, Buffer.from(piiKeyHex, "hex"), rules, poverty),
   jwtSecret: secret,
   users,
-  ledger: new LedgerService(PostgresLedgerStore.fromEnv()),
+  ledger,
   log: (l) => console.log(l),
 });
 await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });

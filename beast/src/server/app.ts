@@ -5,6 +5,7 @@ import argon2 from "argon2";
 import { authorize, type Permission, type Role } from "../auth/rbac.ts";
 import { auditEvent } from "../audit/audit.ts";
 import type { LedgerService } from "../ledger/store.ts";
+import { CaseService, ConflictError, NotFoundError, type NewApplication, type NewIdentity } from "./cases.ts";
 
 export interface UserRecord {
   username: string;
@@ -16,6 +17,7 @@ export interface AppOptions {
   jwtSecret: string;
   users: Map<string, UserRecord>;
   ledger: LedgerService;
+  cases?: CaseService;
   log?: (line: string) => void;
 }
 
@@ -97,6 +99,59 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       return reply.code(201).send(rec);
     },
   );
+
+  const cases = opts.cases;
+  if (cases) {
+    app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
+      if (err instanceof NotFoundError) return reply.code(404).send({ error: "Not found" });
+      if (err instanceof ConflictError) return reply.code(409).send({ error: err.message });
+      if (err.statusCode && err.statusCode < 500) return reply.code(err.statusCode).send({ error: err.message });
+      return reply.code(500).send({ error: "Internal error" });
+    });
+    const actor = (req: FastifyRequest) => (req.user as TokenPayload).sub;
+    const idBody = {
+      type: "object", required: ["type", "jurisdiction", "name", "address", "email"], additionalProperties: false,
+      properties: {
+        type: { enum: ["citizen", "business", "government", "dao"] },
+        jurisdiction: { type: "string", maxLength: 64 },
+        name: { type: "string", maxLength: 256 }, address: { type: "string", maxLength: 512 },
+        email: { type: "string", maxLength: 256 },
+      },
+    };
+    const appBody = {
+      type: "object", additionalProperties: false,
+      required: ["identityId", "adults", "children", "monthlyIncome", "veteranStatus", "disabilityStatus", "housingStatus"],
+      properties: {
+        identityId: { type: "string" }, adults: { type: "integer", minimum: 0, maximum: 50 },
+        children: { type: "integer", minimum: 0, maximum: 50 }, monthlyIncome: { type: "number", minimum: 0 },
+        veteranStatus: { type: "boolean" }, disabilityStatus: { type: "boolean" },
+        housingStatus: { type: "string", maxLength: 64 },
+      },
+    };
+    const idParam = { type: "object", properties: { id: { type: "string", maxLength: 64 } } };
+    type P = { Params: { id: string } };
+
+    app.post<{ Body: NewIdentity }>("/v1/identities", { preHandler: guard("case:create"), schema: { body: idBody } },
+      async (req, reply) => reply.code(201).send(await cases.createIdentity(actor(req), req.body)));
+    app.post<P>("/v1/identities/:id/verify", { preHandler: guard("case:review"), schema: { params: idParam } },
+      async (req) => cases.verifyIdentity(actor(req), req.params.id));
+    app.post<{ Body: NewApplication }>("/v1/applications", { preHandler: guard("case:create"), schema: { body: appBody } },
+      async (req, reply) => reply.code(201).send(await cases.createApplication(actor(req), req.body)));
+    app.post<P>("/v1/applications/:id/submit", { preHandler: guard("case:create"), schema: { params: idParam } },
+      async (req) => cases.transition(actor(req), req.params.id, "submitted"));
+    app.post<P>("/v1/applications/:id/start-review", { preHandler: guard("case:review"), schema: { params: idParam } },
+      async (req) => cases.transition(actor(req), req.params.id, "in_review"));
+    app.post<P & { Body: { decision: "approved" | "denied" } }>("/v1/applications/:id/decision", {
+      preHandler: guard("case:decide"),
+      schema: { params: idParam, body: { type: "object", required: ["decision"], additionalProperties: false, properties: { decision: { enum: ["approved", "denied"] } } } },
+    }, async (req) => cases.transition(actor(req), req.params.id, req.body.decision));
+    app.post<P>("/v1/applications/:id/appeal", { preHandler: guard("case:create"), schema: { params: idParam } },
+      async (req) => cases.transition(actor(req), req.params.id, "appealed"));
+    app.get<P>("/v1/applications/:id/recommendations", { preHandler: guard("case:read"), schema: { params: idParam } },
+      async (req) => cases.recommendations(req.params.id));
+    app.get("/v1/kpis", { preHandler: guard("kpi:read") }, async () => cases.kpis());
+    app.get("/v1/ledger/root", { preHandler: guard("ledger:read") }, async () => cases.ledgerRoot());
+  }
 
   app.get("/healthz", async () => ({ ok: true }));
   return app;

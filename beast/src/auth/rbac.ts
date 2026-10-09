@@ -1,8 +1,8 @@
 export type Role = "caseworker" | "admin" | "auditor";
-export type Permission = "case:review" | "case:read" | "ledger:read" | "kpi:read" | "config:write";
+export type Permission = "case:review" | "case:read" | "ledger:read" | "kpi:read" | "config:write" | "case:create" | "case:decide";
 
 const GRANTS: Record<Role, readonly Permission[]> = {
-  caseworker: ["case:review", "case:read", "kpi:read"],
+  caseworker: ["case:review", "case:read", "case:create", "case:decide", "kpi:read"],
   admin: ["kpi:read", "config:write"],
   auditor: ["ledger:read", "kpi:read"],
 };
