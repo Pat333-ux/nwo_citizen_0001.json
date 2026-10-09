@@ -12,3 +12,4 @@ Technical documentation scaffolding for a future federal contract or authorizati
 - [Data flow and boundary](data-flow-and-boundary.md)
 - [Supply chain and vulnerability policy](supply-chain-policy.md)
 - [Actions required from the organization](org-actions.md)
+- [State of Indiana readiness package](../indiana/README.md)
