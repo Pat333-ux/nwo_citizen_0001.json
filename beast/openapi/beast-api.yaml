@@ -127,6 +127,11 @@ paths:
     post:
       summary: Change own password (any authenticated user)
       responses: {"204": {description: Changed}, "401": {description: Wrong current password}}
+  /dashboard:
+    get:
+      summary: Read-only aggregate dashboard page (no data in the page; it calls /kpis with a user token)
+      security: []
+      responses: {"200": {description: HTML}}
   /kpis:
     get:
       summary: Aggregate KPIs (read-only)

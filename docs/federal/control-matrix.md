@@ -6,6 +6,7 @@ Status: `Prototype` = exists in `beast/` code; `Planned` = not built; `Org` = or
 |---|---|---|---|
 | AC-2 | Account management | Admin-managed accounts (create, disable, enable, password reset) in `beast/src/server/users.ts`; account changes are ledgered; disablement is immediate | Prototype |
 | AC-3 / AC-6 | Access enforcement, least privilege | Role checks in `beast/src/auth/rbac.ts` | Prototype |
+| AC-7 | Unsuccessful logon attempts | 5 failures in 15 min locks the username and the source IP for 15 min (`beast/src/auth/throttle.ts`); in-memory, per process | Prototype |
 | AU-2 / AU-3 | Event logging, content | `beast/src/audit/audit.ts` structured audit events; ledger entries per state change | Prototype |
 | AU-9 | Protection of audit info | Append-only ledger; DB blocks UPDATE/DELETE (`beast/db/001_ledger.sql`) | Prototype |
 | AU-10 | Non-repudiation | Hash-chained ledger, planned Ethereum anchoring | Prototype |
