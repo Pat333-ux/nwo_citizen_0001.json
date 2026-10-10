@@ -25,8 +25,8 @@ test("login succeeds/fails; short secret rejected", async () => {
   assert.ok((await app.inject({ url: "/healthz" })).headers["x-content-type-options"]);
 });
 
-test("RBAC and ledger writes through the API", async () => {
-  const { app, login } = await setup();
+test("RBAC; ledger is read-only over the API", async () => {
+  const { app, ledger, login } = await setup();
   const cw = (await login("cw", "pw-caseworker")).json().token;
   const aud = (await login("aud", "pw-auditor")).json().token;
   const h = (t: string) => ({ authorization: ["Bearer", t].join(" ") });
@@ -34,10 +34,11 @@ test("RBAC and ledger writes through the API", async () => {
   assert.equal((await app.inject({ url: "/v1/ledger/records" })).statusCode, 403);
   assert.equal((await app.inject({ url: "/v1/ledger/records", headers: h(cw) })).statusCode, 403);
   for (const action of ["application.submitted", "application.approved"]) {
-    const r = await app.inject({ method: "POST", url: "/v1/ledger/events", headers: h(cw), payload: { action, payload: { familyId: "f1" } } });
-    assert.equal(r.statusCode, 201);
+    await ledger.append("cw", action, { familyId: "f1" });
   }
-  assert.equal((await app.inject({ method: "POST", url: "/v1/ledger/events", headers: h(aud), payload: { action: "x" } })).statusCode, 403);
+  for (const t of [cw, aud]) {
+    assert.equal((await app.inject({ method: "POST", url: "/v1/ledger/events", headers: h(t), payload: { action: "user.created" } })).statusCode, 404);
+  }
   const recs = (await app.inject({ url: "/v1/ledger/records", headers: h(aud) })).json();
   assert.equal(recs.length, 2);
   assert.equal(recs[1].sequence, 1);

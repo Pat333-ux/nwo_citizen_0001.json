@@ -36,4 +36,4 @@ Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_
 
 ## Before any pilot
 
-Known gaps: TLS must be provided in front of the API; no PIV/CAC, Login.gov or OIDC sign-in; no Ethereum anchoring or SIWE; ledger and case writes are not atomic; login throttle is per process; GitHub Actions workflow and the Docker run have not been exercised end to end; compliance documents are drafts needing legal and agency review.
+Known gaps: TLS must be provided in front of the API; no PIV/CAC, Login.gov or OIDC sign-in; no Ethereum anchoring or SIWE; login throttle is per process; GitHub Actions workflow and the Docker run have not been exercised end to end; compliance documents are drafts needing legal and agency review.

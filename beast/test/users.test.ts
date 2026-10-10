@@ -43,9 +43,9 @@ test("disabling takes effect immediately on existing tokens and login; re-enable
   const admin = await tok("root", LONG);
   const w = (await call(admin, "POST", "/v1/users", { username: "worker2", password: "another-long-pass", role: "caseworker" })).json();
   const wt = await tok("worker2", "another-long-pass");
-  assert.equal((await call(wt, "POST", "/v1/ledger/events", { action: "x.y" })).statusCode, 201);
+  assert.equal((await call(wt, "POST", "/v1/auth/password", { currentPassword: "wrong-password-x", newPassword: "yet-another-long-pass" })).statusCode, 401);
   assert.equal((await call(admin, "POST", `/v1/users/${w.id}/disable`)).json().active, false);
-  assert.equal((await call(wt, "POST", "/v1/ledger/events", { action: "x.y" })).statusCode, 403);
+  assert.equal((await call(wt, "POST", "/v1/auth/password", { currentPassword: "wrong-password-x", newPassword: "yet-another-long-pass" })).statusCode, 403);
   assert.equal((await login("worker2", "another-long-pass")).statusCode, 401);
   await call(admin, "POST", `/v1/users/${w.id}/enable`);
   assert.equal((await login("worker2", "another-long-pass")).statusCode, 200);

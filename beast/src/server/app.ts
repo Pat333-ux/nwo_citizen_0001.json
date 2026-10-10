@@ -123,24 +123,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.get("/v1/ledger/records", { preHandler: guard("ledger:read") }, async () => opts.ledger.list());
   app.get("/v1/ledger/verify", { preHandler: guard("ledger:read") }, async () => opts.ledger.verify());
 
-  app.post<{ Body: { action: string; payload?: unknown } }>(
-    "/v1/ledger/events",
-    {
-      preHandler: guard("case:review"),
-      schema: {
-        body: {
-          type: "object",
-          required: ["action"],
-          properties: { action: { type: "string", maxLength: 128 }, payload: {} },
-        },
-      },
-    },
-    async (req, reply) => {
-      const { sub } = req.user as TokenPayload;
-      const rec = await opts.ledger.append(sub, req.body.action, req.body.payload);
-      return reply.code(201).send(rec);
-    },
-  );
+  // No public ledger write route: only business logic appends, via LedgerService.appendWith().
 
   const cases = opts.cases;
   if (cases) {
