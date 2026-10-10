@@ -82,3 +82,13 @@ test("user changes are ledgered without usernames or passwords in payload; boots
   assert.equal(await users.ensureBootstrapAdmin("bootstrap-password-1"), true);
   assert.equal(await users.ensureBootstrapAdmin("different-password-2"), false);
 });
+
+test("failed user write leaves no ledger record (atomic)", async () => {
+  const { MemoryUserStore, UserService } = await import("../src/server/users.ts");
+  const { LedgerService, MemoryLedgerStore } = await import("../src/ledger/store.ts");
+  const ledger = new LedgerService(new MemoryLedgerStore());
+  const store = await MemoryUserStore.from([{ username: "u1", password: "pw-long-enough-1", role: "admin" }]);
+  const svc = new UserService(store, ledger);
+  await assert.rejects(svc.create("admin", { username: "u1", password: "pw-long-enough-2", role: "caseworker" }));
+  assert.equal((await ledger.list()).length, 0);
+});

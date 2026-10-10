@@ -19,11 +19,11 @@ export interface User {
 export type PublicUser = Omit<User, "passwordHash">;
 
 export interface UserStore {
-  insert(u: User): Promise<void>; // throws ConflictError on duplicate username
+  insert(u: User, tx?: unknown): Promise<void>; // throws ConflictError on duplicate username
   findById(id: string): Promise<User | undefined>;
   findByUsername(username: string): Promise<User | undefined>;
   list(): Promise<User[]>;
-  update(u: User): Promise<void>;
+  update(u: User, tx?: unknown): Promise<void>;
   countActiveAdmins(): Promise<number>;
 }
 
@@ -37,7 +37,7 @@ export class MemoryUserStore implements UserStore {
     }
     return s;
   }
-  async insert(u: User): Promise<void> {
+  async insert(u: User, _tx?: unknown): Promise<void> {
     if ([...this.#users.values()].some((x) => x.username === u.username)) throw new ConflictError("username taken");
     this.#users.set(u.id, { ...u });
   }
@@ -52,7 +52,7 @@ export class MemoryUserStore implements UserStore {
   async list() {
     return [...this.#users.values()].map((u) => ({ ...u }));
   }
-  async update(u: User): Promise<void> {
+  async update(u: User, _tx?: unknown): Promise<void> {
     this.#users.set(u.id, { ...u });
   }
   async countActiveAdmins() {
@@ -76,9 +76,12 @@ export class PostgresUserStore implements UserStore {
   constructor(pool: pg.Pool) {
     this.#pool = pool;
   }
-  async insert(u: User): Promise<void> {
+  #q(tx?: unknown): pg.Pool | pg.PoolClient {
+    return (tx as pg.PoolClient | undefined) ?? this.#pool;
+  }
+  async insert(u: User, tx?: unknown): Promise<void> {
     try {
-      await this.#pool.query(
+      await this.#q(tx).query(
         "INSERT INTO users (id, username, password_hash, role, active, created_at) VALUES ($1,$2,$3,$4,$5,$6)",
         [u.id, u.username, u.passwordHash, u.role, u.active, u.createdAt],
       );
@@ -99,8 +102,8 @@ export class PostgresUserStore implements UserStore {
     const r = await this.#pool.query("SELECT * FROM users ORDER BY created_at ASC");
     return r.rows.map(rowToUser);
   }
-  async update(u: User): Promise<void> {
-    await this.#pool.query("UPDATE users SET password_hash=$2, role=$3, active=$4 WHERE id=$1", [u.id, u.passwordHash, u.role, u.active]);
+  async update(u: User, tx?: unknown): Promise<void> {
+    await this.#q(tx).query("UPDATE users SET password_hash=$2, role=$3, active=$4 WHERE id=$1", [u.id, u.passwordHash, u.role, u.active]);
   }
   async countActiveAdmins() {
     const r = await this.#pool.query("SELECT count(*)::int AS n FROM users WHERE role = 'admin' AND active");
@@ -140,8 +143,9 @@ export class UserService {
       active: true,
       createdAt: new Date(),
     };
-    await this.#store.insert(user);
-    await this.#ledger.append(actor, "user.created", { userId: user.id, role: user.role });
+    await this.#ledger.appendWith(actor, "user.created", { userId: user.id, role: user.role }, (tx) =>
+      this.#store.insert(user, tx),
+    );
     return strip(user);
   }
 
@@ -157,8 +161,9 @@ export class UserService {
       throw new ConflictError("cannot disable the last active admin");
     }
     user.active = active;
-    await this.#ledger.append(actor, active ? "user.enabled" : "user.disabled", { userId: id });
-    await this.#store.update(user);
+    await this.#ledger.appendWith(actor, active ? "user.enabled" : "user.disabled", { userId: id }, (tx) =>
+      this.#store.update(user, tx),
+    );
     return strip(user);
   }
 
@@ -166,16 +171,18 @@ export class UserService {
     const user = await this.#store.findById(id);
     if (!user) throw new NotFoundError("user");
     user.passwordHash = await hashPassword(password);
-    await this.#ledger.append(actor, "user.password_reset", { userId: id });
-    await this.#store.update(user);
+    await this.#ledger.appendWith(actor, "user.password_reset", { userId: id }, (tx) =>
+      this.#store.update(user, tx),
+    );
   }
 
   async changeOwnPassword(username: string, current: string, next: string): Promise<boolean> {
     const user = await this.authenticate(username, current);
     if (!user) return false;
     user.passwordHash = await hashPassword(next);
-    await this.#ledger.append(username, "user.password_changed", { userId: user.id });
-    await this.#store.update(user);
+    await this.#ledger.appendWith(username, "user.password_changed", { userId: user.id }, (tx) =>
+      this.#store.update(user, tx),
+    );
     return true;
   }
 
