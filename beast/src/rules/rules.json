@@ -1,0 +1,10 @@
+[
+  {
+    "ruleId": "LOW_INCOME",
+    "field": "householdIncome",
+    "operator": "<",
+    "valueSource": "povertyLevel",
+    "service": "Food Assistance",
+    "reason": "Income below threshold"
+  }
+]

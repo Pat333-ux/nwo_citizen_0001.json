@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: BEAST API
+  version: 0.1.0
+  description: Draft integration interface. Aggregates only; no PII in ledger or KPI responses.
+servers:
+  - url: https://example.invalid/v1
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LedgerRecord:
+      type: object
+      required: [id, sequence, previousHash, payloadHash, currentHash, actor, action, timestamp]
+      properties:
+        id: {type: string, format: uuid}
+        sequence: {type: integer}
+        previousHash: {type: string}
+        payloadHash: {type: string}
+        currentHash: {type: string}
+        actor: {type: string}
+        action: {type: string}
+        timestamp: {type: integer}
+    Decision:
+      type: object
+      required: [program, reason]
+      properties:
+        program: {type: string}
+        reason: {type: string}
+    Kpis:
+      type: object
+      properties:
+        familiesServed: {type: integer}
+        applicationsPending: {type: integer}
+        activeCitizens: {type: integer}
+        approvals: {type: integer}
+        denials: {type: integer}
+        appeals: {type: integer}
+security:
+  - bearer: []
+paths:
+  /ledger/records:
+    get:
+      summary: List ledger records (auditor role)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/LedgerRecord"}}
+  /ledger/verify:
+    get:
+      summary: Verify hash chain (auditor role)
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: {type: boolean}
+                  brokenAt: {type: integer}
+  /identities:
+    post:
+      summary: Create identity (caseworker). PII is stored encrypted, never in the ledger.
+      responses: {"201": {description: Created}}
+  /identities/{id}/verify:
+    post:
+      summary: Verify identity (caseworker)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "404": {description: Not found}}
+  /applications:
+    post:
+      summary: Create Family First application in draft (caseworker); identity must be verified
+      responses: {"201": {description: Created}, "409": {description: Identity not verified}}
+  /applications/{id}/submit:
+    post:
+      summary: draft to submitted
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /applications/{id}/start-review:
+    post:
+      summary: submitted or appealed to in_review
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /applications/{id}/decision:
+    post:
+      summary: Human decision, approved or denied (caseworker). Only valid from in_review.
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /applications/{id}/appeal:
+    post:
+      summary: denied to appealed
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /ledger/root:
+    get:
+      summary: Merkle root of ledger hashes (auditor), intended for external anchoring; contains no PII
+      responses: {"200": {description: OK}}
+  /users:
+    get:
+      summary: List users (admin). Password hashes are never returned.
+      responses: {"200": {description: OK}}
+    post:
+      summary: Create user (admin). Password min 12 chars; role is caseworker, admin or auditor.
+      responses: {"201": {description: Created}, "400": {description: Invalid}, "409": {description: Username taken}}
+  /users/{id}/disable:
+    post:
+      summary: Disable a user (admin). Takes effect immediately; cannot disable yourself or the last active admin.
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Not allowed}}
+  /users/{id}/enable:
+    post:
+      summary: Re-enable a user (admin)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}}
+  /users/{id}/password:
+    post:
+      summary: Reset a user's password (admin)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"204": {description: Reset}}
+  /auth/password:
+    post:
+      summary: Change own password (any authenticated user)
+      responses: {"204": {description: Changed}, "401": {description: Wrong current password}}
+  /dashboard:
+    get:
+      summary: Read-only aggregate dashboard page (no data in the page; it calls /kpis with a user token)
+      security: []
+      responses: {"200": {description: HTML}}
+  /kpis:
+    get:
+      summary: Aggregate KPIs (read-only)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Kpis"}
+  /applications/{id}/decisions:
+    get:
+      summary: Rules engine recommendations (caseworker role); human review required
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/Decision"}}

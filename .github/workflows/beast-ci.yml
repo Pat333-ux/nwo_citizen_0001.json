@@ -1,0 +1,49 @@
+name: BEAST CI
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+permissions:
+  contents: read
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t beast-api beast
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: beast
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ci-only-password@localhost:5432/beast
+    defaults:
+      run:
+        working-directory: beast
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Apply ledger migration
+        run: psql "$TEST_DATABASE_URL" -f db/001_ledger.sql -f db/002_cases.sql -f db/003_users.sql
+      - run: npm test
+      - run: npm audit --audit-level=high
+      - name: Generate SBOM
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: beast/sbom.json
