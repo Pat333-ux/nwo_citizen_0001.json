@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import { authorize, type Permission, type Role } from "../auth/rbac.ts";
+import { LoginThrottle } from "../auth/throttle.ts";
 import { MIN_PASSWORD_LENGTH, hashPassword, type UserService } from "./users.ts";
 import { auditEvent } from "../audit/audit.ts";
 import type { LedgerService } from "../ledger/store.ts";
@@ -13,6 +14,7 @@ export interface AppOptions {
   ledger: LedgerService;
   cases?: CaseService;
   log?: (line: string) => void;
+  throttle?: LoginThrottle;
 }
 
 export { hashPassword };
@@ -37,6 +39,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     return reply.code(500).send({ error: "Internal error" });
   });
 
+  const throttle = opts.throttle ?? new LoginThrottle();
+
   app.post<{ Body: { username?: string; password?: string } }>(
     "/v1/auth/login",
     {
@@ -50,11 +54,18 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     },
     async (req, reply) => {
       const { username, password } = req.body as { username: string; password: string };
+      const keys = [`u:${username}`, `ip:${req.ip}`];
+      if (keys.some((k) => throttle.isLocked(k))) {
+        auditEvent({ actor: "anonymous", action: "auth.login.locked", outcome: "failure" }, log);
+        return reply.code(429).send({ error: "Too many attempts. Try again later." });
+      }
       const user = await opts.users.authenticate(username, password);
       if (!user) {
+        keys.forEach((k) => throttle.recordFailure(k));
         auditEvent({ actor: "anonymous", action: "auth.login", outcome: "failure" }, log);
         return reply.code(401).send({ error: "Invalid credentials" });
       }
+      throttle.recordSuccess(`u:${username}`);
       auditEvent({ actor: user.username, action: "auth.login", outcome: "success" }, log);
       const payload: TokenPayload = { sub: user.username, role: user.role };
       return { token: app.jwt.sign(payload) };
@@ -178,6 +189,72 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     app.get("/v1/ledger/root", { preHandler: guard("ledger:read") }, async () => cases.ledgerRoot());
   }
 
+  // Read-only aggregate dashboard. The page holds no data; it calls /v1/kpis with a user token.
+  app.get("/dashboard", async (_req, reply) => reply.type("text/html; charset=utf-8").send(DASHBOARD_HTML));
+  app.get("/dashboard/app.js", async (_req, reply) => reply.type("application/javascript; charset=utf-8").send(DASHBOARD_JS));
+
   app.get("/healthz", async () => ({ ok: true }));
   return app;
 }
+
+const DASHBOARD_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BEAST Dashboard</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:2rem auto;max-width:42rem;padding:0 1rem;color:#111;background:#fff}
+label{display:block;margin-top:.75rem;font-weight:600}
+input,button{font:inherit;padding:.5rem;margin-top:.25rem}
+button{background:#0b57d0;color:#fff;border:0;border-radius:4px;cursor:pointer}
+button:focus,input:focus{outline:3px solid #ffbf47;outline-offset:2px}
+table{border-collapse:collapse;width:100%;margin-top:1rem}
+th,td{border:1px solid #444;padding:.5rem;text-align:left}
+[role=alert]{color:#a40000;font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>BEAST Dashboard</h1>
+<p>Aggregate, read-only figures. No personal data is shown.</p>
+<form id="login">
+<label for="u">Username</label><input id="u" autocomplete="username" required>
+<label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required>
+<div><button type="submit">Sign in</button></div>
+</form>
+<p id="msg" role="alert" aria-live="polite"></p>
+<section id="kpis" hidden>
+<h2>Key figures</h2>
+<table><caption>Program counts</caption><thead><tr><th scope="col">Measure</th><th scope="col">Count</th></tr></thead><tbody id="rows"></tbody></table>
+<p><button id="out" type="button">Sign out</button></p>
+</section>
+</main>
+<script src="/dashboard/app.js"></script>
+</body>
+</html>`;
+
+const DASHBOARD_JS = `(function(){
+var token=null;
+var labels={familiesServed:"Families served",applicationsPending:"Applications pending",activeCitizens:"Active citizens",approvals:"Approvals",denials:"Denials",appeals:"Appeals"};
+function $(id){return document.getElementById(id);}
+function msg(t){$("msg").textContent=t||"";}
+async function load(){
+  var r=await fetch("/v1/kpis",{headers:{authorization:"Bearer"+" "+token}});
+  if(!r.ok){msg("Not allowed to view figures.");return;}
+  var d=await r.json();var rows=$("rows");rows.textContent="";
+  Object.keys(labels).forEach(function(k){
+    var tr=document.createElement("tr"),a=document.createElement("th"),b=document.createElement("td");
+    a.scope="row";a.textContent=labels[k];b.textContent=String(d[k]);tr.appendChild(a);tr.appendChild(b);rows.appendChild(tr);
+  });
+  $("kpis").hidden=false;$("login").hidden=true;msg("");
+}
+$("login").addEventListener("submit",async function(e){
+  e.preventDefault();msg("");
+  var r=await fetch("/v1/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:$("u").value,password:$("p").value})});
+  if(r.status===429){msg("Too many attempts. Try again later.");return;}
+  if(!r.ok){msg("Sign-in failed.");return;}
+  token=(await r.json()).token;$("p").value="";await load();
+});
+$("out").addEventListener("click",function(){token=null;$("kpis").hidden=true;$("login").hidden=false;});
+})();`;
