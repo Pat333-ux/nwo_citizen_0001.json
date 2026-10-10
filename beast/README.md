@@ -20,6 +20,7 @@ First steps: log in as `admin` (`POST /v1/auth/login`), create caseworker and au
 
     npm ci
     npm run typecheck
+    npm run lint
     npm test
 
 Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_ledger.sql`, `db/002_cases.sql` and `db/003_users.sql` are applied.
