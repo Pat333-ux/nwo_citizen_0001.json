@@ -6,7 +6,7 @@
 set -euo pipefail
 : "${SOURCE_URL:?set SOURCE_URL}"
 case "$SOURCE_URL" in *\?*) echo "SOURCE_URL must not contain a query string" >&2; exit 2;; esac
-SCRATCH="beast_restore_check_$(date +%s)"
+SCRATCH="beast_restore_check_$(date +%s)_$$"
 ADMIN_URL="${ADMIN_URL:-${SOURCE_URL%/*}/postgres}"
 DUMP="$(mktemp)"
 RESTORE_URL="${SOURCE_URL%/*}/$SCRATCH"
