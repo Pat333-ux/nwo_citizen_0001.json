@@ -127,6 +127,19 @@ paths:
     post:
       summary: Change own password (any authenticated user)
       responses: {"204": {description: Changed}, "401": {description: Wrong current password}}
+  /auth/mfa/enroll:
+    post:
+      summary: Start TOTP enrollment; returns secret and otpauth URI. Usable before MFA is confirmed.
+      responses: {"200": {description: OK}, "409": {description: Already enabled}}
+  /auth/mfa/confirm:
+    post:
+      summary: Confirm enrollment with a 6-digit code. Log in again with `otp` afterwards.
+      responses: {"204": {description: Enabled}, "401": {description: Invalid code}}
+  /users/{id}/mfa/reset:
+    post:
+      summary: Reset a user's MFA (admin) so they must re-enroll
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"204": {description: Reset}}
   /dashboard:
     get:
       summary: Read-only aggregate dashboard page (no data in the page; it calls /kpis with a user token)

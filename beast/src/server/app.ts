@@ -15,6 +15,8 @@ export interface AppOptions {
   cases?: CaseService;
   log?: (line: string) => void;
   throttle?: LoginThrottle;
+  /** When true, every account must enroll TOTP MFA; until then its token only reaches /v1/auth/mfa/*. */
+  requireMfa?: boolean;
 }
 
 export { hashPassword };
@@ -22,9 +24,10 @@ export { hashPassword };
 interface TokenPayload {
   sub: string;
   role: Role;
+  mfa: boolean;
 }
 
-/** Identity (single JWT issuer) and Ledger API in one deployable. Ledger writes only happen via LedgerService. */
+/** Identity (single JWT issuer) and Ledger API in one deployable. There is no HTTP route that writes arbitrary ledger entries; writes happen only inside services. */
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   if (opts.jwtSecret.length < 32) throw new Error("JWT secret must be at least 32 characters");
   const log = opts.log ?? (() => {});
@@ -48,12 +51,12 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
         body: {
           type: "object",
           required: ["username", "password"],
-          properties: { username: { type: "string", maxLength: 128 }, password: { type: "string", maxLength: 256 } },
+          properties: { username: { type: "string", maxLength: 128 }, password: { type: "string", maxLength: 256 }, otp: { type: "string", maxLength: 16 } },
         },
       },
     },
     async (req, reply) => {
-      const { username, password } = req.body as { username: string; password: string };
+      const { username, password, otp } = req.body as { username: string; password: string; otp?: string };
       const keys = [`u:${username}`, `ip:${req.ip}`];
       if (keys.some((k) => throttle.isLocked(k))) {
         auditEvent({ actor: "anonymous", action: "auth.login.locked", outcome: "failure" }, log);
@@ -65,9 +68,15 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
         auditEvent({ actor: "anonymous", action: "auth.login", outcome: "failure" }, log);
         return reply.code(401).send({ error: "Invalid credentials" });
       }
+      if (user.mfaEnabled && !(await opts.users.checkMfaCode(user, otp))) {
+        keys.forEach((k) => throttle.recordFailure(k));
+        auditEvent({ actor: user.username, action: "auth.login.mfa", outcome: "failure" }, log);
+        return reply.code(401).send({ error: otp ? "Invalid credentials" : "MFA code required" });
+      }
       throttle.recordSuccess(`u:${username}`);
       auditEvent({ actor: user.username, action: "auth.login", outcome: "success" }, log);
-      const payload: TokenPayload = { sub: user.username, role: user.role };
+      const mfa = user.mfaEnabled || !opts.requireMfa;
+      const payload: TokenPayload = { sub: user.username, role: user.role, mfa };
       return { token: app.jwt.sign(payload) };
     },
   );
@@ -75,13 +84,14 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   // Role is read from the user store on every request, so disabling an account
   // or changing a role takes effect immediately, even for unexpired tokens.
   const guard =
-    (permission: Permission | null) =>
+    (permission: Permission | null, allowPendingMfa = false) =>
     async (req: FastifyRequest, reply: import("fastify").FastifyReply) => {
       try {
         await req.jwtVerify();
-        const { sub } = req.user as TokenPayload;
+        const { sub, mfa } = req.user as TokenPayload;
         const user = await opts.users.store.findByUsername(sub);
         if (!user || !user.active) throw new Error("inactive");
+        if (opts.requireMfa && !allowPendingMfa && !(mfa && user.mfaEnabled)) throw new Error("mfa required");
         if (permission) authorize(user.role, permission);
         auditEvent({ actor: sub, action: permission ?? "authenticated", outcome: "success" }, log);
       } catch {
@@ -120,27 +130,21 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     return ok ? reply.code(204).send() : reply.code(401).send({ error: "Invalid credentials" });
   });
 
+  app.post("/v1/auth/mfa/enroll", { preHandler: guard(null, true) }, async (req) => opts.users.beginMfaEnrollment(self(req)));
+  app.post<{ Body: { code: string } }>("/v1/auth/mfa/confirm", {
+    preHandler: guard(null, true),
+    schema: { body: { type: "object", required: ["code"], additionalProperties: false, properties: { code: { type: "string", maxLength: 16 } } } },
+  }, async (req, reply) => {
+    const ok = await opts.users.confirmMfa(self(req), req.body.code);
+    return ok ? reply.code(204).send() : reply.code(401).send({ error: "Invalid code" });
+  });
+  app.post<UP>("/v1/users/:id/mfa/reset", { preHandler: guard("user:manage"), schema: { params: userParam } }, async (req, reply) => {
+    await opts.users.resetMfa(self(req), req.params.id);
+    return reply.code(204).send();
+  });
+
   app.get("/v1/ledger/records", { preHandler: guard("ledger:read") }, async () => opts.ledger.list());
   app.get("/v1/ledger/verify", { preHandler: guard("ledger:read") }, async () => opts.ledger.verify());
-
-  app.post<{ Body: { action: string; payload?: unknown } }>(
-    "/v1/ledger/events",
-    {
-      preHandler: guard("case:review"),
-      schema: {
-        body: {
-          type: "object",
-          required: ["action"],
-          properties: { action: { type: "string", maxLength: 128 }, payload: {} },
-        },
-      },
-    },
-    async (req, reply) => {
-      const { sub } = req.user as TokenPayload;
-      const rec = await opts.ledger.append(sub, req.body.action, req.body.payload);
-      return reply.code(201).send(rec);
-    },
-  );
 
   const cases = opts.cases;
   if (cases) {

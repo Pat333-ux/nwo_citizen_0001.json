@@ -9,14 +9,14 @@ Code items below are verified against `beast/` as of this document; everything e
 ### Security
 - [x] Ledger atomicity
 - [x] User atomicity
-- [ ] Ledger lockdown. Finding: the API exposes only `GET /v1/ledger/records`, `/verify`, `/root` (auditor role); there is no HTTP ledger write route. Remaining: confirm DB role grants (INSERT/SELECT only) in the target environment and that no other network path reaches Postgres.
-- [ ] MFA for all staff roles. Not implemented in `beast/src/auth`. Needs code (TOTP or OIDC provider with MFA) plus tests.
+- [x] Ledger lockdown. The former `POST /v1/ledger/events` route was removed; the ledger is read-only over HTTP and written only inside services. Tested in `beast/test/server.test.ts`. Deployment must still restrict network access to Postgres and use the `beast_ledger_app` grants.
+- [x] MFA for all staff roles. TOTP (RFC 6238) in `beast/src/auth/totp.ts`; the server sets `requireMfa: true`, so unenrolled accounts can only reach `/v1/auth/mfa/*`. Tested in `beast/test/mfa.test.ts`. Admins reset MFA with `POST /v1/users/{id}/mfa/reset`.
 - [ ] Threat-model review: see [threat-model.md](threat-model.md)
 - [ ] Audit verification: see [auditor-guide.md](auditor-guide.md)
 
 ### Database
-- [ ] PostgreSQL validation (CI job `test` runs DB tests against postgres:16)
-- [ ] Concurrent-write testing (needs new tests)
+- [x] PostgreSQL validation (all DB tests pass on PostgreSQL 16 with migrations 001-004; CI job `test` runs them)
+- [x] Concurrent-write testing (`beast/test/postgres.test.ts`: 25 parallel appends, unique sequences, valid chain)
 - [ ] Crash-recovery testing: see [backup-restore-and-drills.md](backup-restore-and-drills.md)
 - [ ] Required CI enforcement (GitHub branch protection: require `BEAST CI / test` and `docker`; a repository setting, not code)
 

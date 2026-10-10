@@ -23,7 +23,7 @@ First steps: log in as `admin` (`POST /v1/auth/login`), create caseworker and au
     npm run lint
     npm test
 
-Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_ledger.sql`, `db/002_cases.sql` and `db/003_users.sql` are applied.
+Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_ledger.sql` through `db/004_mfa.sql` are applied.
 
 ## Layout
 
@@ -36,4 +36,4 @@ Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_
 
 ## Before any pilot
 
-Known gaps: TLS must be provided in front of the API; no PIV/CAC, Login.gov or OIDC sign-in; no Ethereum anchoring or SIWE; ledger and case writes are not atomic; login throttle is per process; GitHub Actions workflow and the Docker run have not been exercised end to end; compliance documents are drafts needing legal and agency review.
+Known gaps: TLS must be provided in front of the API; TOTP MFA is required but there is no PIV/CAC, Login.gov or OIDC sign-in, and TOTP secrets are not encrypted at rest; no Ethereum anchoring or SIWE; login throttle is per process; GitHub Actions workflow and the Docker run have not been exercised end to end; compliance documents are drafts needing legal and agency review.

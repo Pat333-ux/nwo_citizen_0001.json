@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import argon2 from "argon2";
 import pg from "pg";
 import type { Role } from "../auth/rbac.ts";
+import { generateTotpSecret, otpauthUri, verifyTotp } from "../auth/totp.ts";
 import type { LedgerService } from "../ledger/store.ts";
 import { ConflictError, NotFoundError } from "./cases.ts";
 
@@ -14,9 +15,12 @@ export interface User {
   role: Role;
   active: boolean;
   createdAt: Date;
+  totpSecret?: string;
+  mfaEnabled: boolean;
+  mfaLastStep: number;
 }
 
-export type PublicUser = Omit<User, "passwordHash">;
+export type PublicUser = Omit<User, "passwordHash" | "totpSecret" | "mfaLastStep">;
 
 export interface UserStore {
   insert(u: User): Promise<void>; // throws ConflictError on duplicate username
@@ -33,7 +37,7 @@ export class MemoryUserStore implements UserStore {
   static async from(seed: { username: string; password: string; role: Role }[]): Promise<MemoryUserStore> {
     const s = new MemoryUserStore();
     for (const u of seed) {
-      await s.insert({ id: randomUUID(), username: u.username, passwordHash: await hashPassword(u.password), role: u.role, active: true, createdAt: new Date() });
+      await s.insert({ id: randomUUID(), username: u.username, passwordHash: await hashPassword(u.password), role: u.role, active: true, createdAt: new Date(), mfaEnabled: false, mfaLastStep: 0 });
     }
     return s;
   }
@@ -68,6 +72,9 @@ function rowToUser(w: Record<string, unknown>): User {
     role: w.role as Role,
     active: w.active as boolean,
     createdAt: w.created_at as Date,
+    totpSecret: (w.totp_secret as string | null) ?? undefined,
+    mfaEnabled: (w.mfa_enabled as boolean | undefined) ?? false,
+    mfaLastStep: Number(w.mfa_last_step ?? 0),
   };
 }
 
@@ -100,7 +107,9 @@ export class PostgresUserStore implements UserStore {
     return r.rows.map(rowToUser);
   }
   async update(u: User): Promise<void> {
-    await this.#pool.query("UPDATE users SET password_hash=$2, role=$3, active=$4 WHERE id=$1", [u.id, u.passwordHash, u.role, u.active]);
+    await this.#pool.query("UPDATE users SET password_hash=$2, role=$3, active=$4, totp_secret=$5, mfa_enabled=$6, mfa_last_step=$7 WHERE id=$1",
+      [u.id, u.passwordHash, u.role, u.active, u.totpSecret ?? null, u.mfaEnabled, u.mfaLastStep],
+    );
   }
   async countActiveAdmins() {
     const r = await this.#pool.query("SELECT count(*)::int AS n FROM users WHERE role = 'admin' AND active");
@@ -139,6 +148,8 @@ export class UserService {
       role: n.role,
       active: true,
       createdAt: new Date(),
+      mfaEnabled: false,
+      mfaLastStep: 0,
     };
     await this.#store.insert(user);
     await this.#ledger.append(actor, "user.created", { userId: user.id, role: user.role });
@@ -179,6 +190,48 @@ export class UserService {
     return true;
   }
 
+  /** Starts (or restarts) enrollment. The factor is not active until confirmMfa succeeds. */
+  async beginMfaEnrollment(username: string): Promise<{ secret: string; otpauthUri: string }> {
+    const user = await this.#store.findByUsername(username);
+    if (!user) throw new NotFoundError("user");
+    if (user.mfaEnabled) throw new ConflictError("MFA already enabled");
+    user.totpSecret = generateTotpSecret();
+    await this.#store.update(user);
+    return { secret: user.totpSecret, otpauthUri: otpauthUri("BEAST", user.username, user.totpSecret) };
+  }
+
+  async confirmMfa(username: string, code: string): Promise<boolean> {
+    const user = await this.#store.findByUsername(username);
+    if (!user?.totpSecret || user.mfaEnabled) return false;
+    const step = verifyTotp(user.totpSecret, code, user.mfaLastStep);
+    if (step === undefined) return false;
+    user.mfaEnabled = true;
+    user.mfaLastStep = step;
+    await this.#ledger.append(username, "user.mfa_enabled", { userId: user.id });
+    await this.#store.update(user);
+    return true;
+  }
+
+  /** Verifies a code for an MFA-enabled user and records the step so it cannot be replayed. */
+  async checkMfaCode(user: User, code: string | undefined): Promise<boolean> {
+    if (!user.mfaEnabled || !user.totpSecret || !code) return false;
+    const step = verifyTotp(user.totpSecret, code, user.mfaLastStep);
+    if (step === undefined) return false;
+    user.mfaLastStep = step;
+    await this.#store.update(user);
+    return true;
+  }
+
+  async resetMfa(actor: string, id: string): Promise<void> {
+    const user = await this.#store.findById(id);
+    if (!user) throw new NotFoundError("user");
+    user.totpSecret = undefined;
+    user.mfaEnabled = false;
+    user.mfaLastStep = 0;
+    await this.#ledger.append(actor, "user.mfa_reset", { userId: id });
+    await this.#store.update(user);
+  }
+
   /** Creates the first admin only when no active admin exists. Never overwrites accounts. */
   async ensureBootstrapAdmin(password: string): Promise<boolean> {
     if ((await this.#store.countActiveAdmins()) > 0) return false;
@@ -188,6 +241,6 @@ export class UserService {
 }
 
 function strip(u: User): PublicUser {
-  const { passwordHash: _omit, ...rest } = u;
+  const { passwordHash: _p, totpSecret: _t, mfaLastStep: _l, ...rest } = u;
   return rest;
 }

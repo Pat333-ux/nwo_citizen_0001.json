@@ -9,6 +9,7 @@ services:
       - ./db/001_ledger.sql:/docker-entrypoint-initdb.d/001_ledger.sql:ro
       - ./db/002_cases.sql:/docker-entrypoint-initdb.d/002_cases.sql:ro
       - ./db/003_users.sql:/docker-entrypoint-initdb.d/003_users.sql:ro
+      - ./db/004_mfa.sql:/docker-entrypoint-initdb.d/004_mfa.sql:ro
   api:
     build: .
     depends_on: [db]

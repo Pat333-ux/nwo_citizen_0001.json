@@ -60,3 +60,30 @@ test("postgres user store: create, duplicate, disable, last-admin guard", { skip
   assert.deepEqual(await ledger.verify(), { valid: true });
   await pool.end();
 });
+
+test("postgres: concurrent ledger appends keep a valid chain with unique sequences", { skip: !url }, async () => {
+  const pool = new pg.Pool({ connectionString: url });
+  const ledger = new LedgerService(new PostgresLedgerStore(pool));
+  const before = (await ledger.list()).length;
+  await Promise.all(Array.from({ length: 25 }, (_, i) => ledger.append("concurrent", "load.test", { i })));
+  const all = await ledger.list();
+  assert.equal(all.length, before + 25);
+  assert.equal(new Set(all.map((r) => r.sequence)).size, all.length);
+  assert.deepEqual(await ledger.verify(), { valid: true });
+  await pool.end();
+});
+
+test("postgres: MFA state persists", { skip: !url }, async () => {
+  const { PostgresUserStore, UserService } = await import("../src/server/users.ts");
+  const { currentStep, totpAt } = await import("../src/auth/totp.ts");
+  const pool = new pg.Pool({ connectionString: url });
+  const svc = new UserService(new PostgresUserStore(pool), new LedgerService(new PostgresLedgerStore(pool)));
+  const name = "mfa-" + Math.random().toString(36).slice(2, 10);
+  await svc.create("tester", { username: name, password: "long-enough-password", role: "caseworker" });
+  const { secret } = await svc.beginMfaEnrollment(name);
+  assert.equal(await svc.confirmMfa(name, totpAt(secret, currentStep())), true);
+  const u = (await svc.store.findByUsername(name))!;
+  assert.equal(u.mfaEnabled, true);
+  assert.equal(await svc.checkMfaCode(u, totpAt(secret, currentStep())), false);
+  await pool.end();
+});
