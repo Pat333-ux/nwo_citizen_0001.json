@@ -8,6 +8,7 @@ export type ApplicationStatus =
 
 export interface FamilyProfile {
   familyId: string;
+  programId?: string;
   adults: number;
   children: number;
   monthlyIncome: number;

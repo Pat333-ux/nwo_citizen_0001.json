@@ -10,6 +10,7 @@ services:
       - ./db/002_cases.sql:/docker-entrypoint-initdb.d/002_cases.sql:ro
       - ./db/003_users.sql:/docker-entrypoint-initdb.d/003_users.sql:ro
       - ./db/004_mfa.sql:/docker-entrypoint-initdb.d/004_mfa.sql:ro
+      - ./db/005_programs_anchors.sql:/docker-entrypoint-initdb.d/005_programs_anchors.sql:ro
   api:
     build: .
     depends_on: [db]
@@ -20,3 +21,7 @@ services:
       PII_KEY_HEX: ${PII_KEY_HEX:?set PII_KEY_HEX (64 hex chars)}
       POVERTY_LEVEL_MONTHLY: ${POVERTY_LEVEL_MONTHLY:?set program poverty level}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      ANCHOR_INTERVAL_MS: ${ANCHOR_INTERVAL_MS:-0}
+      ETH_RPC_URL: ${ETH_RPC_URL:-}
+      ETH_ANCHOR_FROM: ${ETH_ANCHOR_FROM:-}
+      ETH_NETWORK: ${ETH_NETWORK:-ethereum}

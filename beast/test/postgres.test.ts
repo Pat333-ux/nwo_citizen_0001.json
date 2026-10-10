@@ -87,3 +87,22 @@ test("postgres: MFA state persists", { skip: !url }, async () => {
   assert.equal(await svc.checkMfaCode(u, totpAt(secret, currentStep())), false);
   await pool.end();
 });
+
+test("postgres: programs and anchors persist; applications carry program id", { skip: !url }, async () => {
+  const { PostgresProgramStore, ProgramService } = await import("../src/server/programs.ts");
+  const { PostgresAnchorStore, AnchorService, LocalAnchorer } = await import("../src/anchor/anchor.ts");
+  const pool = new pg.Pool({ connectionString: url });
+  const ledger = new LedgerService(new PostgresLedgerStore(pool));
+  const programs = new ProgramService(new PostgresProgramStore(pool), ledger);
+  assert.ok((await programs.list()).length >= 6);
+  const pid = "pg-" + Math.random().toString(36).slice(2, 8);
+  await programs.create("tester", { id: pid, name: "Test" });
+  await assert.rejects(programs.create("tester", { id: pid, name: "Test" }), /taken/);
+  assert.equal((await programs.setActive("tester", pid, false)).active, false);
+  const anchors = new AnchorService(ledger, new PostgresAnchorStore(pool), new LocalAnchorer());
+  const r = await anchors.anchorNow("tester");
+  assert.equal(r.anchored, true);
+  assert.equal((await anchors.latest())?.root, r.anchor?.root);
+  assert.deepEqual(await ledger.verify(), { valid: true });
+  await pool.end();
+});

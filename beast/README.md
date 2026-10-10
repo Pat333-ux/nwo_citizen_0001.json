@@ -23,7 +23,7 @@ First steps: log in as `admin` (`POST /v1/auth/login`), create caseworker and au
     npm run lint
     npm test
 
-Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_ledger.sql` through `db/004_mfa.sql` are applied.
+Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_ledger.sql` through `db/005_programs_anchors.sql` are applied.
 
 ## Layout
 
@@ -33,6 +33,12 @@ Tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set and `db/001_
 - `src/rules`: data-driven rules (recommendations only; humans decide)
 - `db/`: migrations (ledger table is INSERT/SELECT only, enforced by triggers and grants)
 - `openapi/beast-api.yaml`: draft API spec
+
+## Dashboard, programs, anchoring
+
+- `GET /v1/dashboard/summary` (and `/dashboard`): aggregate counts only, including ledger health and MFA compliance.
+- Programs (`/v1/programs`): Family First, Housing, Employment, Veteran Support, Food Security, Education are seeded. Only Family First has automated rules; other programs return no recommendations and rely on the caseworker. Adding rules for a new program requires code (a new rule set).
+- Anchoring (`/v1/anchors`, admin): publishes the ledger Merkle root. By default (`LocalAnchorer`) nothing leaves the system and there is **no public proof**. Set `ETH_RPC_URL`, `ETH_ANCHOR_FROM` (and `ETH_NETWORK`) to send the root as a zero-value Ethereum transaction through a node or signer that holds the key; this service never holds a private key. `ANCHOR_INTERVAL_MS` (>= 60000) enables periodic anchoring. The Ethereum path is tested only against a mock RPC; try it on a testnet first.
 
 ## Before any pilot
 

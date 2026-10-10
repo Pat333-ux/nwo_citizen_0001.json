@@ -45,7 +45,7 @@ test("Sprint 1 flow over the API, with ledger verification and no PII in the led
   assert.equal((await call(aud, "POST", `/v1/applications/${app.familyId}/decision`, { decision: "approved" })).statusCode, 403);
   assert.equal((await call(cw, "POST", `/v1/applications/${app.familyId}/decision`, { decision: "approved" })).json().status, "approved");
 
-  assert.deepEqual((await call(adm, "GET", "/v1/kpis")).json(), { familiesServed: 1, applicationsPending: 0, activeCitizens: 1, approvals: 1, denials: 0, appeals: 0 });
+  assert.deepEqual((await call(adm, "GET", "/v1/kpis")).json(), { familiesServed: 1, applicationsPending: 0, activeCitizens: 1, approvals: 1, denials: 0, appeals: 0, byProgram: { "family-first": { applications: 1, approvals: 1, denials: 0, appeals: 0, pending: 0 } } });
   assert.deepEqual((await call(aud, "GET", "/v1/ledger/verify")).json(), { valid: true });
   const root = (await call(aud, "GET", "/v1/ledger/root")).json();
   assert.equal(root.records, 6);

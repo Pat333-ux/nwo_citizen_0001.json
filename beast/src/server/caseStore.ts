@@ -2,7 +2,7 @@ import pg from "pg";
 import type { BeastIdentity, IdentityPII } from "../types/BeastIdentity.ts";
 import type { ApplicationStatus, FamilyProfile } from "../types/FamilyProfile.ts";
 
-export type StoredApp = FamilyProfile & { identityId: string };
+export type StoredApp = FamilyProfile & { identityId: string; programId: string };
 
 export interface CaseStore {
   insertIdentity(i: BeastIdentity, pii: IdentityPII): Promise<void>;
@@ -12,7 +12,7 @@ export interface CaseStore {
   getApp(familyId: string): Promise<StoredApp | undefined>;
   setAppStatus(familyId: string, status: ApplicationStatus): Promise<void>;
   /** Aggregates only. */
-  counts(): Promise<{ byStatus: Record<string, number>; activeIdentities: number }>;
+  counts(): Promise<{ byStatus: Record<string, number>; activeIdentities: number; byProgram: Record<string, Record<string, number>> }>;
 }
 
 export class MemoryCaseStore implements CaseStore {
@@ -43,7 +43,12 @@ export class MemoryCaseStore implements CaseStore {
   async counts() {
     const byStatus: Record<string, number> = {};
     for (const a of this.#apps.values()) byStatus[a.status] = (byStatus[a.status] ?? 0) + 1;
-    return { byStatus, activeIdentities: [...this.#ids.values()].filter((i) => i.status === "active").length };
+    const byProgram: Record<string, Record<string, number>> = {};
+    for (const a of this.#apps.values()) {
+      const m = (byProgram[a.programId] ??= {});
+      m[a.status] = (m[a.status] ?? 0) + 1;
+    }
+    return { byStatus, byProgram, activeIdentities: [...this.#ids.values()].filter((i) => i.status === "active").length };
   }
 }
 
@@ -97,9 +102,9 @@ export class PostgresCaseStore implements CaseStore {
 
   async insertApp(a: StoredApp): Promise<void> {
     await this.#pool.query(
-      `INSERT INTO applications (family_id,identity_id,adults,children,monthly_income,veteran_status,disability_status,housing_status,status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [a.familyId, a.identityId, a.adults, a.children, a.monthlyIncome, a.veteranStatus, a.disabilityStatus, a.housingStatus, a.status],
+      `INSERT INTO applications (family_id,identity_id,adults,children,monthly_income,veteran_status,disability_status,housing_status,status,program_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [a.familyId, a.identityId, a.adults, a.children, a.monthlyIncome, a.veteranStatus, a.disabilityStatus, a.housingStatus, a.status, a.programId],
     );
   }
 
@@ -110,7 +115,7 @@ export class PostgresCaseStore implements CaseStore {
     return {
       familyId: w.family_id, identityId: w.identity_id, adults: w.adults, children: w.children,
       monthlyIncome: Number(w.monthly_income), veteranStatus: w.veteran_status,
-      disabilityStatus: w.disability_status, housingStatus: w.housing_status, status: w.status,
+      disabilityStatus: w.disability_status, housingStatus: w.housing_status, status: w.status, programId: w.program_id,
     } as StoredApp;
   }
 
@@ -121,7 +126,11 @@ export class PostgresCaseStore implements CaseStore {
   async counts() {
     const s = await this.#pool.query("SELECT status, count(*)::int AS n FROM applications GROUP BY status");
     const a = await this.#pool.query("SELECT count(*)::int AS n FROM identities WHERE status = 'active'");
+    const bp = await this.#pool.query("SELECT program_id, status, count(*)::int AS n FROM applications GROUP BY program_id, status");
+    const byProgram: Record<string, Record<string, number>> = {};
+    for (const r of bp.rows) (byProgram[r.program_id] ??= {})[r.status] = r.n;
     return {
+      byProgram,
       byStatus: Object.fromEntries(s.rows.map((r) => [r.status, r.n])) as Record<string, number>,
       activeIdentities: a.rows[0].n as number,
     };

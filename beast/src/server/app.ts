@@ -6,6 +6,8 @@ import { LoginThrottle } from "../auth/throttle.ts";
 import { MIN_PASSWORD_LENGTH, hashPassword, type UserService } from "./users.ts";
 import { auditEvent } from "../audit/audit.ts";
 import type { LedgerService } from "../ledger/store.ts";
+import type { AnchorService } from "../anchor/anchor.ts";
+import type { ProgramService } from "./programs.ts";
 import { CaseService, ConflictError, NotFoundError, type NewApplication, type NewIdentity } from "./cases.ts";
 
 export interface AppOptions {
@@ -13,6 +15,8 @@ export interface AppOptions {
   users: UserService;
   ledger: LedgerService;
   cases?: CaseService;
+  programs?: ProgramService;
+  anchors?: AnchorService;
   log?: (line: string) => void;
   throttle?: LoginThrottle;
   /** When true, every account must enroll TOTP MFA; until then its token only reaches /v1/auth/mfa/*. */
@@ -71,7 +75,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       if (user.mfaEnabled && !(await opts.users.checkMfaCode(user, otp))) {
         keys.forEach((k) => throttle.recordFailure(k));
         auditEvent({ actor: user.username, action: "auth.login.mfa", outcome: "failure" }, log);
-        return reply.code(401).send({ error: otp ? "Invalid credentials" : "MFA code required" });
+        return reply.code(401).send({ error: "Invalid credentials or MFA code" });
       }
       throttle.recordSuccess(`u:${username}`);
       auditEvent({ actor: user.username, action: "auth.login", outcome: "success" }, log);
@@ -162,7 +166,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       type: "object", additionalProperties: false,
       required: ["identityId", "adults", "children", "monthlyIncome", "veteranStatus", "disabilityStatus", "housingStatus"],
       properties: {
-        identityId: { type: "string" }, adults: { type: "integer", minimum: 0, maximum: 50 },
+        identityId: { type: "string" }, programId: { type: "string", pattern: "^[a-z0-9-]{2,64}$" }, adults: { type: "integer", minimum: 0, maximum: 50 },
         children: { type: "integer", minimum: 0, maximum: 50 }, monthlyIncome: { type: "number", minimum: 0 },
         veteranStatus: { type: "boolean" }, disabilityStatus: { type: "boolean" },
         housingStatus: { type: "string", maxLength: 64 },
@@ -190,7 +194,51 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     app.get<P>("/v1/applications/:id/recommendations", { preHandler: guard("case:read"), schema: { params: idParam } },
       async (req) => cases.recommendations(req.params.id));
     app.get("/v1/kpis", { preHandler: guard("kpi:read") }, async () => cases.kpis());
+    app.get("/v1/dashboard/summary", { preHandler: guard("kpi:read") }, async () => {
+      const k = await cases.kpis();
+      const [u, v, recs] = await Promise.all([opts.users.stats(), opts.ledger.verify(), opts.ledger.list()]);
+      const last = await opts.anchors?.latest();
+      // Aggregates only: counts, percentages and status flags. No identifiers, names or per-person data.
+      return {
+        applications: Object.values(k.byProgram).reduce((a, p) => a + p.applications, 0),
+        approvals: k.approvals, denials: k.denials, appeals: k.appeals, pending: k.applicationsPending,
+        activeUsers: u.activeUsers, activeFamilies: k.familiesServed,
+        ledgerHealth: { valid: v.valid, records: recs.length },
+        mfaCompliance: { enrolled: u.mfaEnrolled, activeUsers: u.activeUsers, percent: u.mfaCompliancePercent },
+        lastAnchor: last ? { anchoredAt: last.anchoredAt, network: last.network, records: last.records } : null,
+        byProgram: k.byProgram,
+      };
+    });
     app.get("/v1/ledger/root", { preHandler: guard("ledger:read") }, async () => cases.ledgerRoot());
+  }
+
+  const programs = opts.programs;
+  if (programs) {
+    app.get("/v1/programs", { preHandler: guard("program:read") }, async () => programs.list());
+    app.post<{ Body: { id: string; name: string; description?: string; ruleSet?: string | null } }>("/v1/programs", {
+      preHandler: guard("config:write"),
+      schema: { body: { type: "object", required: ["id", "name"], additionalProperties: false, properties: {
+        id: { type: "string", pattern: "^[a-z0-9-]{2,64}$" }, name: { type: "string", minLength: 1, maxLength: 128 },
+        description: { type: "string", maxLength: 1024 }, ruleSet: { type: ["string", "null"], maxLength: 64 } } } },
+    }, async (req, reply) => reply.code(201).send(await programs.create(self(req), req.body)));
+    app.post<UP>("/v1/programs/:id/disable", { preHandler: guard("config:write"), schema: { params: userParam } },
+      async (req) => programs.setActive(self(req), req.params.id, false));
+    app.post<UP>("/v1/programs/:id/enable", { preHandler: guard("config:write"), schema: { params: userParam } },
+      async (req) => programs.setActive(self(req), req.params.id, true));
+  }
+
+  const anchors = opts.anchors;
+  if (anchors) {
+    app.get("/v1/anchors", { preHandler: guard("ledger:read") }, async () => anchors.list());
+    app.post("/v1/anchors", { preHandler: guard("ledger:anchor") }, async (req, reply) => {
+      try {
+        const r = await anchors.anchorNow(self(req));
+        return reply.code(r.anchored ? 201 : 200).send(r);
+      } catch {
+        auditEvent({ actor: self(req), action: "ledger.anchor", outcome: "failure" }, log);
+        return reply.code(502).send({ error: "Anchoring failed; see server logs" });
+      }
+    });
   }
 
   // Read-only aggregate dashboard. The page holds no data; it calls /v1/kpis with a user token.
@@ -225,12 +273,14 @@ th,td{border:1px solid #444;padding:.5rem;text-align:left}
 <form id="login">
 <label for="u">Username</label><input id="u" autocomplete="username" required>
 <label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required>
+<label for="o">Authenticator code</label><input id="o" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
 <div><button type="submit">Sign in</button></div>
 </form>
 <p id="msg" role="alert" aria-live="polite"></p>
 <section id="kpis" hidden>
 <h2>Key figures</h2>
 <table><caption>Program counts</caption><thead><tr><th scope="col">Measure</th><th scope="col">Count</th></tr></thead><tbody id="rows"></tbody></table>
+<table><caption>By program</caption><thead><tr><th scope="col">Program</th><th scope="col">Applications</th><th scope="col">Approvals</th><th scope="col">Denials</th><th scope="col">Appeals</th><th scope="col">Pending</th></tr></thead><tbody id="prog"></tbody></table>
 <p><button id="out" type="button">Sign out</button></p>
 </section>
 </main>
@@ -240,22 +290,32 @@ th,td{border:1px solid #444;padding:.5rem;text-align:left}
 
 const DASHBOARD_JS = `(function(){
 var token=null;
-var labels={familiesServed:"Families served",applicationsPending:"Applications pending",activeCitizens:"Active citizens",approvals:"Approvals",denials:"Denials",appeals:"Appeals"};
+var labels={applications:"Applications",approvals:"Approvals",denials:"Denials",appeals:"Appeals",pending:"Pending review",activeUsers:"Active users",activeFamilies:"Active families"};
 function $(id){return document.getElementById(id);}
 function msg(t){$("msg").textContent=t||"";}
 async function load(){
-  var r=await fetch("/v1/kpis",{headers:{authorization:"Bearer"+" "+token}});
+  var r=await fetch("/v1/dashboard/summary",{headers:{authorization:"Bearer"+" "+token}});
   if(!r.ok){msg("Not allowed to view figures.");return;}
   var d=await r.json();var rows=$("rows");rows.textContent="";
   Object.keys(labels).forEach(function(k){
     var tr=document.createElement("tr"),a=document.createElement("th"),b=document.createElement("td");
     a.scope="row";a.textContent=labels[k];b.textContent=String(d[k]);tr.appendChild(a);tr.appendChild(b);rows.appendChild(tr);
   });
+  [["Ledger health",(d.ledgerHealth.valid?"Valid":"BROKEN")+" ("+d.ledgerHealth.records+" records)"],["MFA compliance",d.mfaCompliance.percent+"% ("+d.mfaCompliance.enrolled+" of "+d.mfaCompliance.activeUsers+")"],["Last ledger anchor",d.lastAnchor?d.lastAnchor.anchoredAt+" ("+d.lastAnchor.network+")":"None"]].forEach(function(x){
+    var tr=document.createElement("tr"),a=document.createElement("th"),b=document.createElement("td");
+    a.scope="row";a.textContent=x[0];b.textContent=x[1];tr.appendChild(a);tr.appendChild(b);rows.appendChild(tr);
+  });
+  var pr=$("prog");pr.textContent="";
+  Object.keys(d.byProgram).forEach(function(id){
+    var p=d.byProgram[id],tr=document.createElement("tr");
+    [id,p.applications,p.approvals,p.denials,p.appeals,p.pending].forEach(function(v,i){var c=document.createElement(i?"td":"th");if(!i)c.scope="row";c.textContent=String(v);tr.appendChild(c);});
+    pr.appendChild(tr);
+  });
   $("kpis").hidden=false;$("login").hidden=true;msg("");
 }
 $("login").addEventListener("submit",async function(e){
   e.preventDefault();msg("");
-  var r=await fetch("/v1/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:$("u").value,password:$("p").value})});
+  var r=await fetch("/v1/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:$("u").value,password:$("p").value,otp:$("o").value||undefined})});
   if(r.status===429){msg("Too many attempts. Try again later.");return;}
   if(!r.ok){msg("Sign-in failed.");return;}
   token=(await r.json()).token;$("p").value="";await load();

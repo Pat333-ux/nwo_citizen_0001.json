@@ -190,6 +190,17 @@ export class UserService {
     return true;
   }
 
+  /** Aggregates only. MFA compliance covers active accounts. */
+  async stats(): Promise<{ activeUsers: number; mfaEnrolled: number; mfaCompliancePercent: number }> {
+    const active = (await this.#store.list()).filter((u) => u.active);
+    const mfaEnrolled = active.filter((u) => u.mfaEnabled).length;
+    return {
+      activeUsers: active.length,
+      mfaEnrolled,
+      mfaCompliancePercent: active.length ? Math.round((mfaEnrolled / active.length) * 100) : 100,
+    };
+  }
+
   /** Starts (or restarts) enrollment. The factor is not active until confirmMfa succeeds. */
   async beginMfaEnrollment(username: string): Promise<{ secret: string; otpauthUri: string }> {
     const user = await this.#store.findByUsername(username);

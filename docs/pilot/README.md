@@ -40,3 +40,8 @@ Code items below are verified against `beast/` as of this document; everything e
 - [ ] Privacy review
 - [ ] Staff training: [governance-checklist.md](governance-checklist.md)
 - [ ] Go/No-Go approval recorded in ledger: [governance-checklist.md](governance-checklist.md)
+
+## Post-pilot-gate platform features (implemented)
+- Executive dashboard: `GET /v1/dashboard/summary`, aggregate only.
+- Program registry: six programs seeded; admins manage them.
+- Ledger anchoring: pipeline built and tested; real Ethereum anchoring needs an RPC/signer, funded account and a testnet trial (open).

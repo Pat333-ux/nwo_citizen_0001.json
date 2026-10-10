@@ -5,6 +5,7 @@ import { encryptPII } from "../crypto/pii.ts";
 import { merkleRoot } from "../crypto/merkle.ts";
 import type { LedgerService } from "../ledger/store.ts";
 import { buildContext, runRules, type Decision, type Rule } from "../rules/engine.ts";
+import { DEFAULT_PROGRAM_ID, type ProgramService } from "./programs.ts";
 import type { CaseStore, StoredApp } from "./caseStore.ts";
 import type { BeastIdentity, IdentityType } from "../types/BeastIdentity.ts";
 import type { ApplicationStatus, FamilyProfile } from "../types/FamilyProfile.ts";
@@ -19,6 +20,7 @@ export interface NewIdentity {
 
 export interface NewApplication {
   identityId: string;
+  programId?: string;
   adults: number;
   children: number;
   monthlyIncome: number;
@@ -34,6 +36,7 @@ export interface Kpis {
   approvals: number;
   denials: number;
   appeals: number;
+  byProgram: Record<string, { applications: number; approvals: number; denials: number; appeals: number; pending: number }>;
 }
 
 export class NotFoundError extends Error {}
@@ -49,8 +52,10 @@ export class CaseService {
   #key: Buffer;
   #rules: Rule[];
   #povertyLevelMonthly: number;
+  #programs?: ProgramService;
 
-  constructor(ledger: LedgerService, store: CaseStore, piiKey: Buffer, rules: Rule[], povertyLevelMonthly: number) {
+  constructor(ledger: LedgerService, store: CaseStore, piiKey: Buffer, rules: Rule[], povertyLevelMonthly: number, programs?: ProgramService) {
+    this.#programs = programs;
     this.#ledger = ledger;
     this.#store = store;
     this.#key = piiKey;
@@ -98,8 +103,12 @@ export class CaseService {
     const identity = await this.#store.getIdentity(n.identityId);
     if (!identity) throw new NotFoundError("identity");
     if (identity.verificationLevel < 1) throw new ConflictError("identity not verified");
+    const programId = n.programId ?? DEFAULT_PROGRAM_ID;
+    if (this.#programs) await this.#programs.requireActive(programId);
+    else if (programId !== DEFAULT_PROGRAM_ID) throw new NotFoundError("program");
     const app: StoredApp = {
       familyId: randomUUID(),
+      programId,
       identityId: n.identityId,
       adults: n.adults,
       children: n.children,
@@ -130,12 +139,16 @@ export class CaseService {
   async recommendations(familyId: string): Promise<Decision[]> {
     const app = await this.#store.getApp(familyId);
     if (!app) throw new NotFoundError("application");
+    if (this.#programs) {
+      const program = await this.#programs.get(app.programId);
+      if (!program?.ruleSet) return []; // no automated rules for this program; the caseworker decides
+    }
     return runRules(this.#rules, buildContext(app, { povertyLevel: this.#povertyLevelMonthly }));
   }
 
   /** Aggregates only; no per-family or per-person data. */
   async kpis(): Promise<Kpis> {
-    const { byStatus, activeIdentities } = await this.#store.counts();
+    const { byStatus, activeIdentities, byProgram } = await this.#store.counts();
     const n = (s: string) => byStatus[s] ?? 0;
     return {
       familiesServed: n("approved"),
@@ -144,6 +157,13 @@ export class CaseService {
       approvals: n("approved"),
       denials: n("denied"),
       appeals: n("appealed"),
+      byProgram: Object.fromEntries(
+        Object.entries(byProgram).map(([id, m]) => [id, {
+          applications: Object.values(m).reduce((a, b) => a + b, 0),
+          approvals: m.approved ?? 0, denials: m.denied ?? 0, appeals: m.appealed ?? 0,
+          pending: (m.submitted ?? 0) + (m.in_review ?? 0),
+        }]),
+      ),
     };
   }
 

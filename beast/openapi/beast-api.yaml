@@ -140,6 +140,34 @@ paths:
       summary: Reset a user's MFA (admin) so they must re-enroll
       parameters: [{name: id, in: path, required: true, schema: {type: string}}]
       responses: {"204": {description: Reset}}
+  /dashboard/summary:
+    get:
+      summary: Aggregate executive figures (applications, approvals, denials, appeals, active users and families, ledger health, MFA compliance, last anchor, per program). No PII.
+      responses: {"200": {description: OK}}
+  /programs:
+    get:
+      summary: List programs
+      responses: {"200": {description: OK}}
+    post:
+      summary: Create a program (admin). ruleSet must name a rule set built into the deployment, or be null.
+      responses: {"201": {description: Created}, "409": {description: Id taken or unknown rule set}}
+  /programs/{id}/disable:
+    post:
+      summary: Stop accepting applications for a program (admin)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "404": {description: Not found}}
+  /programs/{id}/enable:
+    post:
+      summary: Re-enable a program (admin)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "404": {description: Not found}}
+  /anchors:
+    get:
+      summary: List published ledger-root anchors (auditor)
+      responses: {"200": {description: OK}}
+    post:
+      summary: Anchor the current Merkle root now (admin). Skips if nothing new since the last anchor.
+      responses: {"201": {description: Anchored}, "200": {description: Skipped}}
   /dashboard:
     get:
       summary: Read-only aggregate dashboard page (no data in the page; it calls /kpis with a user token)
