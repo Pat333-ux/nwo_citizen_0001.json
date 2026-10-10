@@ -55,7 +55,8 @@ export function verifyTotp(secret: string, code: string, lastUsedStep = 0, now =
   let match: number | undefined;
   for (const step of [cur - 1, cur, cur + 1]) {
     const a = Buffer.from(totpAt(secret, step));
-    if (match === undefined && timingSafeEqual(a, Buffer.from(code)) && step > lastUsedStep) match = step;
+    const equal = timingSafeEqual(a, Buffer.from(code));
+    if (equal && step > lastUsedStep && match === undefined) match = step;
   }
   return match;
 }

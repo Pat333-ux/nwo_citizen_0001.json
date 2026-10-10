@@ -11,6 +11,7 @@ import { MemoryProgramStore, ProgramService } from "../src/server/programs.ts";
 import { AnchorService, EthereumRpcAnchorer, LocalAnchorer, MemoryAnchorStore } from "../src/anchor/anchor.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
 import { merkleRoot } from "../src/crypto/merkle.ts";
+const TEST_MFA_KEY = Buffer.alloc(32, 7);
 
 const PW = "correct-horse-battery";
 
@@ -20,7 +21,7 @@ async function setup(anchorer = new LocalAnchorer()) {
     { username: "cw", password: PW, role: "caseworker" },
     { username: "aud", password: PW, role: "auditor" },
     { username: "adm", password: PW, role: "admin" },
-  ]), ledger);
+  ]), ledger, TEST_MFA_KEY);
   const rules = JSON.parse(readFileSync(new URL("../src/rules/rules.json", import.meta.url), "utf8"));
   const programs = new ProgramService(new MemoryProgramStore(), ledger);
   const cases = new CaseService(ledger, new MemoryCaseStore(), randomBytes(32), rules, 2000, programs);

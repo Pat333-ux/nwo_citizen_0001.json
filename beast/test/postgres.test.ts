@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import pg from "pg";
 import { LedgerService, PostgresLedgerStore } from "../src/ledger/store.ts";
+const TEST_MFA_KEY = Buffer.alloc(32, 7);
 
 const url = process.env.TEST_DATABASE_URL;
 
@@ -48,7 +49,7 @@ test("postgres user store: create, duplicate, disable, last-admin guard", { skip
   const { PostgresUserStore, UserService } = await import("../src/server/users.ts");
   const pool = new pg.Pool({ connectionString: url });
   const ledger = new LedgerService(new PostgresLedgerStore(pool));
-  const svc = new UserService(new PostgresUserStore(pool), ledger);
+  const svc = new UserService(new PostgresUserStore(pool), ledger, TEST_MFA_KEY);
   const name = "pg-" + Math.random().toString(36).slice(2, 10);
   const u = await svc.create("tester", { username: name, password: "long-enough-password", role: "caseworker" });
   await assert.rejects(svc.create("tester", { username: name, password: "long-enough-password", role: "auditor" }), /username taken/);
@@ -77,7 +78,7 @@ test("postgres: MFA state persists", { skip: !url }, async () => {
   const { PostgresUserStore, UserService } = await import("../src/server/users.ts");
   const { currentStep, totpAt } = await import("../src/auth/totp.ts");
   const pool = new pg.Pool({ connectionString: url });
-  const svc = new UserService(new PostgresUserStore(pool), new LedgerService(new PostgresLedgerStore(pool)));
+  const svc = new UserService(new PostgresUserStore(pool), new LedgerService(new PostgresLedgerStore(pool)), TEST_MFA_KEY);
   const name = "mfa-" + Math.random().toString(36).slice(2, 10);
   await svc.create("tester", { username: name, password: "long-enough-password", role: "caseworker" });
   const { secret } = await svc.beginMfaEnrollment(name);

@@ -11,6 +11,7 @@ Code items below are verified against `beast/` as of this document; everything e
 - [x] User atomicity
 - [x] Ledger lockdown. The former `POST /v1/ledger/events` route was removed; the ledger is read-only over HTTP and written only inside services. Tested in `beast/test/server.test.ts`. Deployment must still restrict network access to Postgres and use the `beast_ledger_app` grants.
 - [x] MFA for all staff roles. TOTP (RFC 6238) in `beast/src/auth/totp.ts`; the server sets `requireMfa: true`, so unenrolled accounts can only reach `/v1/auth/mfa/*`. Tested in `beast/test/mfa.test.ts`. Admins reset MFA with `POST /v1/users/{id}/mfa/reset`.
+- [x] Encrypted MFA secrets (AES-256-GCM, separate `MFA_KEY_HEX`; legacy plaintext auto-upgraded at startup)
 - [ ] Threat-model review: see [threat-model.md](threat-model.md)
 - [ ] Audit verification: see [auditor-guide.md](auditor-guide.md)
 
@@ -21,10 +22,10 @@ Code items below are verified against `beast/` as of this document; everything e
 - [ ] Required CI enforcement (GitHub branch protection: require `BEAST CI / test` and `docker`; a repository setting, not code)
 
 ### Operations
-- [ ] Backup and restore tested: [backup-restore-and-drills.md](backup-restore-and-drills.md)
-- [ ] Monitoring deployed: [monitoring-and-alerting.md](monitoring-and-alerting.md)
-- [ ] Alerting deployed: [monitoring-and-alerting.md](monitoring-and-alerting.md)
-- [ ] Incident response drill completed: [backup-restore-and-drills.md](backup-restore-and-drills.md)
+- [ ] Backup and restore tested: automated check built and passing in CI and locally; still to run on the real pilot environment: [backup-restore-and-drills.md](backup-restore-and-drills.md)
+- [ ] Monitoring deployed: metrics endpoint, health checks and rules built; collector must be deployed: [monitoring-and-alerting.md](monitoring-and-alerting.md)
+- [ ] Alerting deployed: webhook alerts built; route and test them: [monitoring-and-alerting.md](monitoring-and-alerting.md)
+- [ ] Incident response drill completed: scenario written, not yet run: [incident-drill-compromised-admin.md](incident-drill-compromised-admin.md)
 
 ### Documentation
 - [x] [Administrator guide](administrator-guide.md)
@@ -36,8 +37,8 @@ Code items below are verified against `beast/` as of this document; everything e
 - [x] [Consent form](consent-form.md) (draft)
 
 ### Governance
-- [ ] Legal review
-- [ ] Privacy review
+- [ ] Legal review: briefing ready, review not done: [legal-privacy-review-package.md](legal-privacy-review-package.md)
+- [ ] Privacy review: see [legal-privacy-review-package.md](legal-privacy-review-package.md)
 - [ ] Staff training: [governance-checklist.md](governance-checklist.md)
 - [ ] Go/No-Go approval recorded in ledger: [governance-checklist.md](governance-checklist.md)
 

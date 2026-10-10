@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { buildApp } from "../src/server/app.ts";
 import { MemoryUserStore, UserService } from "../src/server/users.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
+const TEST_MFA_KEY = Buffer.alloc(32, 7);
 
 const LONG = "correct-horse-battery";
 
 async function setup() {
   const ledger = new LedgerService(new MemoryLedgerStore());
-  const users = new UserService(await MemoryUserStore.from([{ username: "root", password: LONG, role: "admin" }]), ledger);
+  const users = new UserService(await MemoryUserStore.from([{ username: "root", password: LONG, role: "admin" }]), ledger, TEST_MFA_KEY);
   const app = await buildApp({ jwtSecret: "z".repeat(32), users, ledger });
   const login = async (u: string, p: string) =>
     app.inject({ method: "POST", url: "/v1/auth/login", payload: { username: u, password: p } });
@@ -78,7 +79,7 @@ test("user changes are ledgered without usernames or passwords in payload; boots
   const recs = await ledger.list();
   assert.ok(recs.some((r) => r.action === "user.created"));
   assert.equal(JSON.stringify(recs).includes("another-long-pass"), false);
-  const users = new UserService(new MemoryUserStore(), ledger);
+  const users = new UserService(new MemoryUserStore(), ledger, TEST_MFA_KEY);
   assert.equal(await users.ensureBootstrapAdmin("bootstrap-password-1"), true);
   assert.equal(await users.ensureBootstrapAdmin("different-password-2"), false);
 });

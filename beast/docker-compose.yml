@@ -19,9 +19,11 @@ services:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/beast
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ chars)}
       PII_KEY_HEX: ${PII_KEY_HEX:?set PII_KEY_HEX (64 hex chars)}
+      MFA_KEY_HEX: ${MFA_KEY_HEX:?set MFA_KEY_HEX (64 hex chars, different from PII_KEY_HEX)}
       POVERTY_LEVEL_MONTHLY: ${POVERTY_LEVEL_MONTHLY:?set program poverty level}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       ANCHOR_INTERVAL_MS: ${ANCHOR_INTERVAL_MS:-0}
       ETH_RPC_URL: ${ETH_RPC_URL:-}
       ETH_ANCHOR_FROM: ${ETH_ANCHOR_FROM:-}
       ETH_NETWORK: ${ETH_NETWORK:-ethereum}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}

@@ -3,7 +3,7 @@
 Role `admin` has `user:manage`, `config:write`, `kpi:read`. Admins cannot read cases or the ledger.
 
 ## Setup
-1. Set secrets in the environment, never in git: `POSTGRES_PASSWORD`, `JWT_SECRET` (32+ chars), `PII_KEY_HEX` (64 hex chars), `POVERTY_LEVEL_MONTHLY`, `BOOTSTRAP_ADMIN_PASSWORD` (12+ chars).
+1. Set secrets in the environment, never in git: `POSTGRES_PASSWORD`, `JWT_SECRET` (32+ chars), `PII_KEY_HEX` (64 hex chars), `MFA_KEY_HEX` (64 hex chars, different from the PII key; encrypts TOTP secrets, back it up separately), `POVERTY_LEVEL_MONTHLY`, `BOOTSTRAP_ADMIN_PASSWORD` (12+ chars).
 2. Apply `beast/db/001_ledger.sql`, `002_cases.sql`, `003_users.sql`, then `docker compose up --build` in `beast/`.
 3. Put TLS in front of the API. Check `GET /healthz`.
 3a. Apply `004_mfa.sql` too (compose does this automatically).

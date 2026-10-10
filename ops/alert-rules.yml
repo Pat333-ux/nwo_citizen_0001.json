@@ -1,0 +1,23 @@
+# Example Prometheus alert rules for BEAST. Scrape /v1/ops/metrics with an auditor/admin service token.
+groups:
+  - name: beast
+    rules:
+      - alert: BeastDatabaseDown
+        expr: beast_db_up == 0 or increase(beast_db_check_failures[5m]) > 0
+        labels: {severity: critical}
+      - alert: BeastLedgerVerificationFailed
+        expr: beast_ledger_valid == 0 or increase(beast_ledger_verify_failures[5m]) > 0
+        labels: {severity: critical}
+      - alert: BeastMetricsMissing
+        expr: absent(beast_db_up)
+        for: 5m
+        labels: {severity: high}
+      - alert: BeastFailedLoginSpike
+        expr: increase(beast_failed_logins[10m]) > 20
+        labels: {severity: medium}
+      - alert: BeastMfaReset
+        expr: increase(beast_mfa_resets[1h]) > 0
+        labels: {severity: medium}
+      - alert: BeastAnchorFailure
+        expr: increase(beast_anchor_failures[1h]) > 0
+        labels: {severity: high}

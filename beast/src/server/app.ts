@@ -7,6 +7,7 @@ import { MIN_PASSWORD_LENGTH, hashPassword, type UserService } from "./users.ts"
 import { auditEvent } from "../audit/audit.ts";
 import type { LedgerService } from "../ledger/store.ts";
 import type { AnchorService } from "../anchor/anchor.ts";
+import { Metrics } from "../ops/metrics.ts";
 import type { ProgramService } from "./programs.ts";
 import { CaseService, ConflictError, NotFoundError, type NewApplication, type NewIdentity } from "./cases.ts";
 
@@ -17,6 +18,9 @@ export interface AppOptions {
   cases?: CaseService;
   programs?: ProgramService;
   anchors?: AnchorService;
+  metrics?: Metrics;
+  /** Called when an anchor request fails, so operators are alerted. */
+  onAnchorFailure?: () => void;
   log?: (line: string) => void;
   throttle?: LoginThrottle;
   /** When true, every account must enroll TOTP MFA; until then its token only reaches /v1/auth/mfa/*. */
@@ -46,6 +50,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     return reply.code(500).send({ error: "Internal error" });
   });
 
+  const metrics = opts.metrics ?? new Metrics();
   const throttle = opts.throttle ?? new LoginThrottle();
 
   app.post<{ Body: { username?: string; password?: string } }>(
@@ -69,11 +74,14 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       const user = await opts.users.authenticate(username, password);
       if (!user) {
         keys.forEach((k) => throttle.recordFailure(k));
+        metrics.inc("failed_logins");
         auditEvent({ actor: "anonymous", action: "auth.login", outcome: "failure" }, log);
         return reply.code(401).send({ error: "Invalid credentials" });
       }
       if (user.mfaEnabled && !(await opts.users.checkMfaCode(user, otp))) {
         keys.forEach((k) => throttle.recordFailure(k));
+        metrics.inc("failed_logins");
+        metrics.inc("mfa_failures");
         auditEvent({ actor: user.username, action: "auth.login.mfa", outcome: "failure" }, log);
         return reply.code(401).send({ error: "Invalid credentials or MFA code" });
       }
@@ -139,11 +147,21 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     preHandler: guard(null, true),
     schema: { body: { type: "object", required: ["code"], additionalProperties: false, properties: { code: { type: "string", maxLength: 16 } } } },
   }, async (req, reply) => {
+    const key = `mfa:${self(req)}`;
+    if (throttle.isLocked(key)) return reply.code(429).send({ error: "Too many attempts. Try again later." });
     const ok = await opts.users.confirmMfa(self(req), req.body.code);
-    return ok ? reply.code(204).send() : reply.code(401).send({ error: "Invalid code" });
+    if (ok) {
+      throttle.recordSuccess(key);
+      return reply.code(204).send();
+    }
+    throttle.recordFailure(key);
+    metrics.inc("mfa_failures");
+    return reply.code(401).send({ error: "Invalid code" });
   });
   app.post<UP>("/v1/users/:id/mfa/reset", { preHandler: guard("user:manage"), schema: { params: userParam } }, async (req, reply) => {
     await opts.users.resetMfa(self(req), req.params.id);
+    metrics.inc("mfa_resets");
+    auditEvent({ actor: self(req), action: "user.mfa_reset", outcome: "success" }, log);
     return reply.code(204).send();
   });
 
@@ -235,6 +253,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
         const r = await anchors.anchorNow(self(req));
         return reply.code(r.anchored ? 201 : 200).send(r);
       } catch {
+        metrics.inc("anchor_failures");
+        opts.onAnchorFailure?.();
         auditEvent({ actor: self(req), action: "ledger.anchor", outcome: "failure" }, log);
         return reply.code(502).send({ error: "Anchoring failed; see server logs" });
       }
@@ -245,6 +265,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.get("/dashboard", async (_req, reply) => reply.type("text/html; charset=utf-8").send(DASHBOARD_HTML));
   app.get("/dashboard/app.js", async (_req, reply) => reply.type("application/javascript; charset=utf-8").send(DASHBOARD_JS));
 
+  app.get("/v1/ops/metrics", { preHandler: guard("ops:read") }, async (_req, reply) =>
+    reply.type("text/plain; version=0.0.4").send(metrics.prometheus()));
   app.get("/healthz", async () => ({ ok: true }));
   return app;
 }

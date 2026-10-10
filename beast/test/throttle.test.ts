@@ -4,6 +4,7 @@ import { LoginThrottle } from "../src/auth/throttle.ts";
 import { buildApp } from "../src/server/app.ts";
 import { MemoryUserStore, UserService } from "../src/server/users.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
+const TEST_MFA_KEY = Buffer.alloc(32, 7);
 
 test("throttle locks after max failures, expires, and resets on success", () => {
   const t = new LoginThrottle(3, 1000, 5000);
@@ -18,7 +19,7 @@ test("throttle locks after max failures, expires, and resets on success", () => 
 
 test("login endpoint returns 429 after repeated failures, even with the right password", async () => {
   const ledger = new LedgerService(new MemoryLedgerStore());
-  const users = new UserService(await MemoryUserStore.from([{ username: "u1", password: "correct-password-1", role: "auditor" }]), ledger);
+  const users = new UserService(await MemoryUserStore.from([{ username: "u1", password: "correct-password-1", role: "auditor" }]), ledger, TEST_MFA_KEY);
   const app = await buildApp({ jwtSecret: "q".repeat(32), users, ledger, throttle: new LoginThrottle(3) });
   const login = (p: string) => app.inject({ method: "POST", url: "/v1/auth/login", payload: { username: "u1", password: p } });
   for (let i = 0; i < 3; i++) assert.equal((await login("bad")).statusCode, 401);
@@ -27,7 +28,7 @@ test("login endpoint returns 429 after repeated failures, even with the right pa
 
 test("dashboard is served with CSP and contains no data; scripts are external", async () => {
   const ledger = new LedgerService(new MemoryLedgerStore());
-  const users = new UserService(new MemoryUserStore(), ledger);
+  const users = new UserService(new MemoryUserStore(), ledger, TEST_MFA_KEY);
   const app = await buildApp({ jwtSecret: "q".repeat(32), users, ledger });
   const page = await app.inject({ url: "/dashboard" });
   assert.equal(page.statusCode, 200);

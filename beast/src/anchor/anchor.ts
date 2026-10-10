@@ -142,11 +142,14 @@ export class AnchorService {
   }
 }
 
-export function startAnchorSchedule(svc: AnchorService, intervalMs: number, log: (l: string) => void): () => void {
+export function startAnchorSchedule(svc: AnchorService, intervalMs: number, log: (l: string) => void, onFailure: () => void = () => {}): () => void {
   const t = setInterval(() => {
     svc.anchorNow("system").then(
       (r) => log(`anchor ${r.anchored ? "published " + r.anchor!.txRef : "skipped: " + r.reason}`),
-      (e: Error) => log(`anchor FAILED: ${e.message}`),
+      (e: Error) => {
+        log(`anchor FAILED: ${e.message}`);
+        onFailure();
+      },
     );
   }, intervalMs);
   t.unref();

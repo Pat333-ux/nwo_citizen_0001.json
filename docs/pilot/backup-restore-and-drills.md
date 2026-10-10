@@ -1,16 +1,13 @@
-# Backup, Restore, Crash Recovery and Incident Drill (test plans)
+# Backup, Restore, Crash Recovery and Incident Drill
 
-Mark each with date, tester, result and evidence. Open until run.
+## Backup and restore: automated check (done)
+`beast/scripts/restore-check.sh` runs `pg_dump`, restores into a scratch database, and compares row counts, ledger validity and Merkle root between source and restore via `beast/scripts/fingerprint.ts`. It passed locally on PostgreSQL 16 (53 ledger records identical, root equal) and runs in CI against the test database.
 
-## Backup and restore
-1. `pg_dump -Fc` the database to encrypted storage.
-2. Restore into a clean Postgres; apply no extra migrations.
-3. Start the API on the restored DB; `/v1/ledger/verify` must pass and the Merkle root must equal the pre-backup root.
-4. Record RPO/RTO achieved vs `docs/compliance/disaster-recovery-plan.md`.
+Still required before go-live (operators): run it against the real pilot database with real storage, record the time taken (RTO) and backup age (RPO) against `docs/compliance/disaster-recovery-plan.md`, store dumps encrypted, and keep `PII_KEY_HEX` and `MFA_KEY_HEX` backed up separately: without them restored PII and MFA secrets are unreadable. Repeat monthly.
 
-## Crash recovery
-1. Under load of case writes, `kill -9` the API, then separately the Postgres container.
-2. Restart. Verify no partial case/ledger pairs (atomicity), ledger verify passes, and no duplicate sequence numbers.
+## Crash recovery (operators to run)
+1. Under case-write load `kill -9` the API, then the Postgres container separately.
+2. Restart; run `fingerprint.ts`: ledger valid, no duplicate sequences, no case without its ledger record.
 
-## Incident response drill
-Tabletop: suspected credential theft by a caseworker. Walk through `docs/compliance/incident-response-plan.md`: detect, contain (deactivate user, rotate JWT secret), audit via ledger, notify per breach plan, write lessons learned. Record gaps as issues.
+## Incident drill
+See [incident-drill-compromised-admin.md](incident-drill-compromised-admin.md). Not yet performed; record date, participants, timings and gaps there.

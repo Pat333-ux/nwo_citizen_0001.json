@@ -7,6 +7,7 @@ import { MemoryUserStore, UserService } from "../src/server/users.ts";
 import { MemoryCaseStore } from "../src/server/caseStore.ts";
 import { CaseService } from "../src/server/cases.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
+const TEST_MFA_KEY = Buffer.alloc(32, 7);
 
 async function setup() {
   const ledger = new LedgerService(new MemoryLedgerStore());
@@ -14,7 +15,7 @@ async function setup() {
     { username: "cw", password: "pw-caseworker", role: "caseworker" },
     { username: "aud", password: "pw-auditor", role: "auditor" },
     { username: "adm", password: "pw-admin", role: "admin" },
-  ]), ledger);
+  ]), ledger, TEST_MFA_KEY);
   const rules = JSON.parse(readFileSync(new URL("../src/rules/rules.json", import.meta.url), "utf8"));
   const cases = new CaseService(ledger, new MemoryCaseStore(), randomBytes(32), rules, 2000);
   const app = await buildApp({ jwtSecret: "y".repeat(32), users, ledger, cases });

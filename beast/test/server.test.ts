@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { buildApp } from "../src/server/app.ts";
 import { MemoryUserStore, UserService } from "../src/server/users.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
+const TEST_MFA_KEY = Buffer.alloc(32, 7);
 
 async function setup() {
   const ledger = new LedgerService(new MemoryLedgerStore());
   const users = new UserService(await MemoryUserStore.from([
     { username: "cw", password: "pw-caseworker", role: "caseworker" },
     { username: "aud", password: "pw-auditor", role: "auditor" },
-  ]), ledger);
+  ]), ledger, TEST_MFA_KEY);
   const app = await buildApp({ jwtSecret: "x".repeat(32), users, ledger });
   const login = async (u: string, p: string) =>
     app.inject({ method: "POST", url: "/v1/auth/login", payload: { username: u, password: p } });

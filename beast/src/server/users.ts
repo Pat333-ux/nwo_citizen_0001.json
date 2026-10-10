@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import argon2 from "argon2";
 import pg from "pg";
 import type { Role } from "../auth/rbac.ts";
+import { decryptPII, encryptPII } from "../crypto/pii.ts";
 import { generateTotpSecret, otpauthUri, verifyTotp } from "../auth/totp.ts";
 import type { LedgerService } from "../ledger/store.ts";
 import { ConflictError, NotFoundError } from "./cases.ts";
@@ -117,6 +118,9 @@ export class PostgresUserStore implements UserStore {
   }
 }
 
+/** Encrypted secrets are `iv.tag.ciphertext`; anything else is a legacy plaintext base32 secret. */
+const isEncrypted = (stored: string): boolean => stored.includes(".");
+
 export const MIN_PASSWORD_LENGTH = 12;
 
 export class UserService {
@@ -124,10 +128,32 @@ export class UserService {
   #ledger: LedgerService;
   // Fixed hash so unknown usernames cost the same time as wrong passwords.
   #dummyHash: Promise<string> = hashPassword("not-a-real-password");
+  #mfaKey: Buffer;
 
-  constructor(store: UserStore, ledger: LedgerService) {
+  /** `mfaKey` (32 bytes, separate from the PII key; KMS-managed in production) encrypts TOTP secrets at rest with AES-256-GCM. */
+  constructor(store: UserStore, ledger: LedgerService, mfaKey: Buffer) {
+    if (mfaKey.length !== 32) throw new Error("MFA key must be 32 bytes");
     this.#store = store;
     this.#ledger = ledger;
+    this.#mfaKey = mfaKey;
+  }
+
+  /** Stored secrets are `iv.tag.ciphertext`; a value with no dots is a legacy plaintext secret. */
+  #plainSecret(stored: string): string {
+    return isEncrypted(stored) ? decryptPII(stored, this.#mfaKey) : stored;
+  }
+
+  /** Encrypts any legacy plaintext TOTP secrets. Safe to run repeatedly; returns the number upgraded. */
+  async migrateMfaSecrets(): Promise<number> {
+    let n = 0;
+    for (const u of await this.#store.list()) {
+      if (u.totpSecret && !isEncrypted(u.totpSecret)) {
+        u.totpSecret = encryptPII(u.totpSecret, this.#mfaKey);
+        await this.#store.update(u);
+        n++;
+      }
+    }
+    return n;
   }
 
   get store(): UserStore {
@@ -206,15 +232,16 @@ export class UserService {
     const user = await this.#store.findByUsername(username);
     if (!user) throw new NotFoundError("user");
     if (user.mfaEnabled) throw new ConflictError("MFA already enabled");
-    user.totpSecret = generateTotpSecret();
+    const secret = generateTotpSecret();
+    user.totpSecret = encryptPII(secret, this.#mfaKey);
     await this.#store.update(user);
-    return { secret: user.totpSecret, otpauthUri: otpauthUri("BEAST", user.username, user.totpSecret) };
+    return { secret, otpauthUri: otpauthUri("BEAST", user.username, secret) };
   }
 
   async confirmMfa(username: string, code: string): Promise<boolean> {
     const user = await this.#store.findByUsername(username);
     if (!user?.totpSecret || user.mfaEnabled) return false;
-    const step = verifyTotp(user.totpSecret, code, user.mfaLastStep);
+    const step = verifyTotp(this.#plainSecret(user.totpSecret), code, user.mfaLastStep);
     if (step === undefined) return false;
     user.mfaEnabled = true;
     user.mfaLastStep = step;
@@ -226,9 +253,10 @@ export class UserService {
   /** Verifies a code for an MFA-enabled user and records the step so it cannot be replayed. */
   async checkMfaCode(user: User, code: string | undefined): Promise<boolean> {
     if (!user.mfaEnabled || !user.totpSecret || !code) return false;
-    const step = verifyTotp(user.totpSecret, code, user.mfaLastStep);
+    const step = verifyTotp(this.#plainSecret(user.totpSecret), code, user.mfaLastStep);
     if (step === undefined) return false;
     user.mfaLastStep = step;
+    if (!isEncrypted(user.totpSecret)) user.totpSecret = encryptPII(user.totpSecret, this.#mfaKey);
     await this.#store.update(user);
     return true;
   }
