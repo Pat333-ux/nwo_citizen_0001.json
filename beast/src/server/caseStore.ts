@@ -5,12 +5,12 @@ import type { ApplicationStatus, FamilyProfile } from "../types/FamilyProfile.ts
 export type StoredApp = FamilyProfile & { identityId: string };
 
 export interface CaseStore {
-  insertIdentity(i: BeastIdentity, pii: IdentityPII): Promise<void>;
+  insertIdentity(i: BeastIdentity, pii: IdentityPII, tx?: unknown): Promise<void>;
   getIdentity(id: string): Promise<BeastIdentity | undefined>;
-  updateIdentity(i: BeastIdentity): Promise<void>;
-  insertApp(a: StoredApp): Promise<void>;
+  updateIdentity(i: BeastIdentity, tx?: unknown): Promise<void>;
+  insertApp(a: StoredApp, tx?: unknown): Promise<void>;
   getApp(familyId: string): Promise<StoredApp | undefined>;
-  setAppStatus(familyId: string, status: ApplicationStatus): Promise<void>;
+  setAppStatus(familyId: string, status: ApplicationStatus, tx?: unknown): Promise<void>;
   /** Aggregates only. */
   counts(): Promise<{ byStatus: Record<string, number>; activeIdentities: number }>;
 }
@@ -19,24 +19,24 @@ export class MemoryCaseStore implements CaseStore {
   #ids = new Map<string, BeastIdentity>();
   #apps = new Map<string, StoredApp>();
 
-  async insertIdentity(i: BeastIdentity): Promise<void> {
+  async insertIdentity(i: BeastIdentity, _pii?: IdentityPII, _tx?: unknown): Promise<void> {
     this.#ids.set(i.id, { ...i });
   }
   async getIdentity(id: string) {
     const i = this.#ids.get(id);
     return i && { ...i };
   }
-  async updateIdentity(i: BeastIdentity): Promise<void> {
+  async updateIdentity(i: BeastIdentity, tx?: unknown): Promise<void> {
     this.#ids.set(i.id, { ...i });
   }
-  async insertApp(a: StoredApp): Promise<void> {
+  async insertApp(a: StoredApp, tx?: unknown): Promise<void> {
     this.#apps.set(a.familyId, { ...a });
   }
   async getApp(familyId: string) {
     const a = this.#apps.get(familyId);
     return a && { ...a };
   }
-  async setAppStatus(familyId: string, status: ApplicationStatus): Promise<void> {
+  async setAppStatus(familyId: string, status: ApplicationStatus, tx?: unknown): Promise<void> {
     const a = this.#apps.get(familyId);
     if (a) a.status = status;
   }
@@ -53,10 +53,15 @@ export class PostgresCaseStore implements CaseStore {
     this.#pool = pool;
   }
 
-  async insertIdentity(i: BeastIdentity, pii: IdentityPII): Promise<void> {
-    const c = await this.#pool.connect();
+  #q(tx?: unknown): pg.Pool | pg.PoolClient {
+    return (tx as pg.PoolClient | undefined) ?? this.#pool;
+  }
+
+  async insertIdentity(i: BeastIdentity, pii: IdentityPII, tx?: unknown): Promise<void> {
+    const c = (tx as pg.PoolClient | undefined) ?? (await this.#pool.connect());
+    const own = !tx;
     try {
-      await c.query("BEGIN");
+      if (own) await c.query("BEGIN");
       await c.query(
         `INSERT INTO identities (id,did,type,jurisdiction,verification_level,status,reputation,wallet,hash,created_at,updated_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
@@ -66,12 +71,12 @@ export class PostgresCaseStore implements CaseStore {
         "INSERT INTO identity_pii (identity_id, encrypted_name, encrypted_address, encrypted_email) VALUES ($1,$2,$3,$4)",
         [pii.identityId, pii.encryptedName, pii.encryptedAddress, pii.encryptedEmail],
       );
-      await c.query("COMMIT");
+      if (own) await c.query("COMMIT");
     } catch (e) {
-      await c.query("ROLLBACK");
+      if (own) await c.query("ROLLBACK");
       throw e;
     } finally {
-      c.release();
+      if (own) c.release();
     }
   }
 
@@ -88,15 +93,15 @@ export class PostgresCaseStore implements CaseStore {
     return i;
   }
 
-  async updateIdentity(i: BeastIdentity): Promise<void> {
-    await this.#pool.query(
+  async updateIdentity(i: BeastIdentity, tx?: unknown): Promise<void> {
+    await this.#q(tx).query(
       "UPDATE identities SET verification_level=$2, status=$3, reputation=$4, updated_at=$5 WHERE id=$1",
       [i.id, i.verificationLevel, i.status, i.reputation, i.updatedAt],
     );
   }
 
-  async insertApp(a: StoredApp): Promise<void> {
-    await this.#pool.query(
+  async insertApp(a: StoredApp, tx?: unknown): Promise<void> {
+    await this.#q(tx).query(
       `INSERT INTO applications (family_id,identity_id,adults,children,monthly_income,veteran_status,disability_status,housing_status,status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [a.familyId, a.identityId, a.adults, a.children, a.monthlyIncome, a.veteranStatus, a.disabilityStatus, a.housingStatus, a.status],
@@ -114,8 +119,8 @@ export class PostgresCaseStore implements CaseStore {
     } as StoredApp;
   }
 
-  async setAppStatus(familyId: string, status: ApplicationStatus): Promise<void> {
-    await this.#pool.query("UPDATE applications SET status = $2 WHERE family_id = $1", [familyId, status]);
+  async setAppStatus(familyId: string, status: ApplicationStatus, tx?: unknown): Promise<void> {
+    await this.#q(tx).query("UPDATE applications SET status = $2 WHERE family_id = $1", [familyId, status]);
   }
 
   async counts() {

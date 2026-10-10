@@ -67,3 +67,17 @@ test("validation, 404 and denial/appeal path", async () => {
   assert.equal((await call(cw, "POST", `/v1/applications/${a.familyId}/appeal`)).json().status, "appealed");
   assert.equal((await call(cw, "POST", `/v1/applications/${a.familyId}/start-review`)).json().status, "in_review");
 });
+
+test("a failed state change writes no ledger record (atomic ledger + case update)", async () => {
+  const ledger = new LedgerService(new MemoryLedgerStore());
+  await assert.rejects(
+    ledger.appendWith("a", "x", {}, async () => {
+      throw new Error("db down");
+    }),
+    /db down/,
+  );
+  assert.equal((await ledger.list()).length, 0);
+  await ledger.appendWith("a", "x", {}, async () => undefined);
+  assert.equal((await ledger.list()).length, 1);
+  assert.deepEqual(await ledger.verify(), { valid: true });
+});

@@ -5,10 +5,20 @@ import { computeRecordHash, sha256 } from "../crypto/hash.ts";
 import type { LedgerRecord } from "../types/LedgerRecord.ts";
 import type { VerifyResult } from "./ledger.ts";
 
+/**
+ * State change committed atomically with the ledger record. `tx` is an opaque
+ * handle that case stores use to join the same database transaction.
+ * If it throws, no ledger record is written.
+ */
+export type Work = (tx: unknown) => Promise<void>;
+
 /** Storage exposes append and read only. There is no update or delete. */
 export interface LedgerStore {
   /** Atomically builds and stores the next record given the current tail. */
-  appendNext(build: (last: LedgerRecord | undefined) => LedgerRecord): Promise<LedgerRecord>;
+  appendNext(
+    build: (last: LedgerRecord | undefined) => LedgerRecord,
+    work?: Work,
+  ): Promise<LedgerRecord>;
   all(): Promise<LedgerRecord[]>;
 }
 
@@ -16,9 +26,10 @@ export class MemoryLedgerStore implements LedgerStore {
   #records: LedgerRecord[] = [];
   #queue: Promise<unknown> = Promise.resolve();
 
-  appendNext(build: (last: LedgerRecord | undefined) => LedgerRecord): Promise<LedgerRecord> {
-    const run = this.#queue.then(() => {
+  appendNext(build: (last: LedgerRecord | undefined) => LedgerRecord, work?: Work): Promise<LedgerRecord> {
+    const run = this.#queue.then(async () => {
       const r = build(this.#records[this.#records.length - 1]);
+      if (work) await work(undefined);
       this.#records.push(Object.freeze(r));
       return r;
     });
@@ -43,7 +54,7 @@ export class PostgresLedgerStore implements LedgerStore {
     return new PostgresLedgerStore(new pg.Pool({ connectionString: process.env.DATABASE_URL }));
   }
 
-  async appendNext(build: (last: LedgerRecord | undefined) => LedgerRecord): Promise<LedgerRecord> {
+  async appendNext(build: (last: LedgerRecord | undefined) => LedgerRecord, work?: Work): Promise<LedgerRecord> {
     const client = await this.#pool.connect();
     try {
       await client.query("BEGIN");
@@ -52,6 +63,7 @@ export class PostgresLedgerStore implements LedgerStore {
         "SELECT * FROM ledger_records ORDER BY sequence DESC LIMIT 1",
       );
       const r = build(res.rows[0] ? rowToRecord(res.rows[0]) : undefined);
+      if (work) await work(client);
       await client.query(
         `INSERT INTO ledger_records
          (id, sequence, previous_hash, payload_hash, current_hash, actor, action, timestamp_ms)
@@ -99,6 +111,11 @@ export class LedgerService {
   }
 
   append(actor: string, action: string, payload: unknown, now = Date.now()): Promise<LedgerRecord> {
+    return this.appendWith(actor, action, payload, undefined, now);
+  }
+
+  /** Runs `work` and appends the ledger record in one transaction: both commit or neither does. */
+  appendWith(actor: string, action: string, payload: unknown, work?: Work, now = Date.now()): Promise<LedgerRecord> {
     return this.#store.appendNext((last) => {
       const base = {
         previousHash: last ? last.currentHash : GENESIS_HASH,
@@ -109,7 +126,7 @@ export class LedgerService {
         payloadHash: sha256(JSON.stringify(payload ?? null)),
       };
       return { id: randomUUID(), ...base, currentHash: computeRecordHash(base) };
-    });
+    }, work);
   }
 
   list(): Promise<LedgerRecord[]> {

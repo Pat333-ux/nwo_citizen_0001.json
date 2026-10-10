@@ -73,13 +73,15 @@ export class CaseService {
       createdAt: now,
       updatedAt: now,
     };
-    await this.#store.insertIdentity(identity, {
+    const pii = {
       identityId: id,
       encryptedName: encryptPII(n.name, this.#key),
       encryptedAddress: encryptPII(n.address, this.#key),
       encryptedEmail: encryptPII(n.email, this.#key),
-    });
-    await this.#ledger.append(actor, "citizen.created", { identityId: id });
+    };
+    await this.#ledger.appendWith(actor, "citizen.created", { identityId: id }, (tx) =>
+      this.#store.insertIdentity(identity, pii, tx),
+    );
     return identity;
   }
 
@@ -89,8 +91,12 @@ export class CaseService {
     if (identity.status !== "active") throw new ConflictError("identity not active");
     identity.verificationLevel += 1;
     identity.updatedAt = new Date();
-    await this.#ledger.append(actor, "citizen.verified", { identityId: id, level: identity.verificationLevel });
-    await this.#store.updateIdentity(identity);
+    await this.#ledger.appendWith(
+      actor,
+      "citizen.verified",
+      { identityId: id, level: identity.verificationLevel },
+      (tx) => this.#store.updateIdentity(identity, tx),
+    );
     return identity;
   }
 
@@ -109,8 +115,9 @@ export class CaseService {
       housingStatus: n.housingStatus,
       status: "draft",
     };
-    await this.#store.insertApp(app);
-    await this.#ledger.append(actor, "application.created", { familyId: app.familyId });
+    await this.#ledger.appendWith(actor, "application.created", { familyId: app.familyId }, (tx) =>
+      this.#store.insertApp(app, tx),
+    );
     return publicView(app);
   }
 
@@ -121,8 +128,9 @@ export class CaseService {
       throw new ConflictError(`invalid transition ${app.status} -> ${to}`);
     }
     const from = app.status;
-    await this.#ledger.append(actor, `application.${to}`, { familyId, from, to });
-    await this.#store.setAppStatus(familyId, to);
+    await this.#ledger.appendWith(actor, `application.${to}`, { familyId, from, to }, (tx) =>
+      this.#store.setAppStatus(familyId, to, tx),
+    );
     return publicView({ ...app, status: to });
   }
 
