@@ -2,18 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { buildApp, hashPassword, type UserRecord } from "../src/server/app.ts";
+import { buildApp } from "../src/server/app.ts";
+import { MemoryUserStore, UserService } from "../src/server/users.ts";
 import { MemoryCaseStore } from "../src/server/caseStore.ts";
 import { CaseService } from "../src/server/cases.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
 
 async function setup() {
-  const users = new Map<string, UserRecord>([
-    ["cw", { username: "cw", passwordHash: await hashPassword("pw-caseworker"), role: "caseworker" }],
-    ["aud", { username: "aud", passwordHash: await hashPassword("pw-auditor"), role: "auditor" }],
-    ["adm", { username: "adm", passwordHash: await hashPassword("pw-admin"), role: "admin" }],
-  ]);
   const ledger = new LedgerService(new MemoryLedgerStore());
+  const users = new UserService(await MemoryUserStore.from([
+    { username: "cw", password: "pw-caseworker", role: "caseworker" },
+    { username: "aud", password: "pw-auditor", role: "auditor" },
+    { username: "adm", password: "pw-admin", role: "admin" },
+  ]), ledger);
   const rules = JSON.parse(readFileSync(new URL("../src/rules/rules.json", import.meta.url), "utf8"));
   const cases = new CaseService(ledger, new MemoryCaseStore(), randomBytes(32), rules, 2000);
   const app = await buildApp({ jwtSecret: "y".repeat(32), users, ledger, cases });

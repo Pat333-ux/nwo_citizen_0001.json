@@ -4,7 +4,7 @@ Status: `Prototype` = exists in `beast/` code; `Planned` = not built; `Org` = or
 
 | Control | Requirement | Implementation | Status |
 |---|---|---|---|
-| AC-2 | Account management | Identity service issues/revokes identities (`IdentityStatus`) | Planned |
+| AC-2 | Account management | Admin-managed accounts (create, disable, enable, password reset) in `beast/src/server/users.ts`; account changes are ledgered; disablement is immediate | Prototype |
 | AC-3 / AC-6 | Access enforcement, least privilege | Role checks in `beast/src/auth/rbac.ts` | Prototype |
 | AU-2 / AU-3 | Event logging, content | `beast/src/audit/audit.ts` structured audit events; ledger entries per state change | Prototype |
 | AU-9 | Protection of audit info | Append-only ledger; DB blocks UPDATE/DELETE (`beast/db/001_ledger.sql`) | Prototype |

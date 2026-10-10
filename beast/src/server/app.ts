@@ -1,27 +1,21 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
-import argon2 from "argon2";
 import { authorize, type Permission, type Role } from "../auth/rbac.ts";
+import { MIN_PASSWORD_LENGTH, hashPassword, type UserService } from "./users.ts";
 import { auditEvent } from "../audit/audit.ts";
 import type { LedgerService } from "../ledger/store.ts";
 import { CaseService, ConflictError, NotFoundError, type NewApplication, type NewIdentity } from "./cases.ts";
 
-export interface UserRecord {
-  username: string;
-  passwordHash: string; // Argon2
-  role: Role;
-}
-
 export interface AppOptions {
   jwtSecret: string;
-  users: Map<string, UserRecord>;
+  users: UserService;
   ledger: LedgerService;
   cases?: CaseService;
   log?: (line: string) => void;
 }
 
-export const hashPassword = (pw: string): Promise<string> => argon2.hash(pw, { type: argon2.argon2id });
+export { hashPassword };
 
 interface TokenPayload {
   sub: string;
@@ -36,8 +30,12 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   await app.register(helmet);
   await app.register(jwt, { secret: opts.jwtSecret, sign: { expiresIn: "15m" } });
 
-  // Fixed hash so unknown usernames cost the same time as wrong passwords.
-  const dummyHash = await hashPassword("not-a-real-password");
+  app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
+    if (err instanceof NotFoundError) return reply.code(404).send({ error: "Not found" });
+    if (err instanceof ConflictError) return reply.code(409).send({ error: err.message });
+    if (err.statusCode && err.statusCode < 500) return reply.code(err.statusCode).send({ error: err.message });
+    return reply.code(500).send({ error: "Internal error" });
+  });
 
   app.post<{ Body: { username?: string; password?: string } }>(
     "/v1/auth/login",
@@ -52,9 +50,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     },
     async (req, reply) => {
       const { username, password } = req.body as { username: string; password: string };
-      const user = opts.users.get(username);
-      const ok = await argon2.verify(user?.passwordHash ?? dummyHash, password).catch(() => false);
-      if (!user || !ok) {
+      const user = await opts.users.authenticate(username, password);
+      if (!user) {
         auditEvent({ actor: "anonymous", action: "auth.login", outcome: "failure" }, log);
         return reply.code(401).send({ error: "Invalid credentials" });
       }
@@ -64,19 +61,53 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     },
   );
 
+  // Role is read from the user store on every request, so disabling an account
+  // or changing a role takes effect immediately, even for unexpired tokens.
   const guard =
-    (permission: Permission) =>
+    (permission: Permission | null) =>
     async (req: FastifyRequest, reply: import("fastify").FastifyReply) => {
       try {
         await req.jwtVerify();
-        const { role, sub } = req.user as TokenPayload;
-        authorize(role, permission);
-        auditEvent({ actor: sub, action: permission, outcome: "success" }, log);
+        const { sub } = req.user as TokenPayload;
+        const user = await opts.users.store.findByUsername(sub);
+        if (!user || !user.active) throw new Error("inactive");
+        if (permission) authorize(user.role, permission);
+        auditEvent({ actor: sub, action: permission ?? "authenticated", outcome: "success" }, log);
       } catch {
-        auditEvent({ actor: "unknown", action: permission, outcome: "failure" }, log);
+        auditEvent({ actor: "unknown", action: permission ?? "authenticated", outcome: "failure" }, log);
         return reply.code(403).send({ error: "Forbidden" });
       }
     };
+
+  const pw = { type: "string", minLength: MIN_PASSWORD_LENGTH, maxLength: 256 };
+  const userParam = { type: "object", properties: { id: { type: "string", maxLength: 64 } } };
+  type UP = { Params: { id: string } };
+  const self = (req: FastifyRequest) => (req.user as TokenPayload).sub;
+
+  app.post<{ Body: { username: string; password: string; role: Role } }>("/v1/users", {
+    preHandler: guard("user:manage"),
+    schema: { body: { type: "object", required: ["username", "password", "role"], additionalProperties: false, properties: {
+      username: { type: "string", pattern: "^[a-z0-9._-]{3,64}$" }, password: pw, role: { enum: ["caseworker", "admin", "auditor"] } } } },
+  }, async (req, reply) => reply.code(201).send(await opts.users.create(self(req), req.body)));
+  app.get("/v1/users", { preHandler: guard("user:manage") }, async () => opts.users.list());
+  app.post<UP>("/v1/users/:id/disable", { preHandler: guard("user:manage"), schema: { params: userParam } },
+    async (req) => opts.users.setActive(self(req), req.params.id, false));
+  app.post<UP>("/v1/users/:id/enable", { preHandler: guard("user:manage"), schema: { params: userParam } },
+    async (req) => opts.users.setActive(self(req), req.params.id, true));
+  app.post<UP & { Body: { password: string } }>("/v1/users/:id/password", {
+    preHandler: guard("user:manage"),
+    schema: { params: userParam, body: { type: "object", required: ["password"], additionalProperties: false, properties: { password: pw } } },
+  }, async (req, reply) => {
+    await opts.users.resetPassword(self(req), req.params.id, req.body.password);
+    return reply.code(204).send();
+  });
+  app.post<{ Body: { currentPassword: string; newPassword: string } }>("/v1/auth/password", {
+    preHandler: guard(null),
+    schema: { body: { type: "object", required: ["currentPassword", "newPassword"], additionalProperties: false, properties: { currentPassword: { type: "string", maxLength: 256 }, newPassword: pw } } },
+  }, async (req, reply) => {
+    const ok = await opts.users.changeOwnPassword(self(req), req.body.currentPassword, req.body.newPassword);
+    return ok ? reply.code(204).send() : reply.code(401).send({ error: "Invalid credentials" });
+  });
 
   app.get("/v1/ledger/records", { preHandler: guard("ledger:read") }, async () => opts.ledger.list());
   app.get("/v1/ledger/verify", { preHandler: guard("ledger:read") }, async () => opts.ledger.verify());
@@ -102,12 +133,6 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
 
   const cases = opts.cases;
   if (cases) {
-    app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
-      if (err instanceof NotFoundError) return reply.code(404).send({ error: "Not found" });
-      if (err instanceof ConflictError) return reply.code(409).send({ error: err.message });
-      if (err.statusCode && err.statusCode < 500) return reply.code(err.statusCode).send({ error: err.message });
-      return reply.code(500).send({ error: "Internal error" });
-    });
     const actor = (req: FastifyRequest) => (req.user as TokenPayload).sub;
     const idBody = {
       type: "object", required: ["type", "jurisdiction", "name", "address", "email"], additionalProperties: false,

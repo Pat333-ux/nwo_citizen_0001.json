@@ -36,7 +36,7 @@ jobs:
           node-version: "24"
       - run: npm ci
       - name: Apply ledger migration
-        run: psql "$TEST_DATABASE_URL" -f db/001_ledger.sql -f db/002_cases.sql
+        run: psql "$TEST_DATABASE_URL" -f db/001_ledger.sql -f db/002_cases.sql -f db/003_users.sql
       - run: npm test
       - run: npm audit --audit-level=high
       - name: Generate SBOM

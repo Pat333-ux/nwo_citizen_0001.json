@@ -101,6 +101,32 @@ paths:
     get:
       summary: Merkle root of ledger hashes (auditor), intended for external anchoring; contains no PII
       responses: {"200": {description: OK}}
+  /users:
+    get:
+      summary: List users (admin). Password hashes are never returned.
+      responses: {"200": {description: OK}}
+    post:
+      summary: Create user (admin). Password min 12 chars; role is caseworker, admin or auditor.
+      responses: {"201": {description: Created}, "400": {description: Invalid}, "409": {description: Username taken}}
+  /users/{id}/disable:
+    post:
+      summary: Disable a user (admin). Takes effect immediately; cannot disable yourself or the last active admin.
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}, "409": {description: Not allowed}}
+  /users/{id}/enable:
+    post:
+      summary: Re-enable a user (admin)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: OK}}
+  /users/{id}/password:
+    post:
+      summary: Reset a user's password (admin)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"204": {description: Reset}}
+  /auth/password:
+    post:
+      summary: Change own password (any authenticated user)
+      responses: {"204": {description: Changed}, "401": {description: Wrong current password}}
   /kpis:
     get:
       summary: Aggregate KPIs (read-only)

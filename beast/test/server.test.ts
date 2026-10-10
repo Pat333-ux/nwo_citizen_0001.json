@@ -1,14 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildApp, hashPassword, type UserRecord } from "../src/server/app.ts";
+import { buildApp } from "../src/server/app.ts";
+import { MemoryUserStore, UserService } from "../src/server/users.ts";
 import { LedgerService, MemoryLedgerStore } from "../src/ledger/store.ts";
 
 async function setup() {
-  const users = new Map<string, UserRecord>([
-    ["cw", { username: "cw", passwordHash: await hashPassword("pw-caseworker"), role: "caseworker" }],
-    ["aud", { username: "aud", passwordHash: await hashPassword("pw-auditor"), role: "auditor" }],
-  ]);
   const ledger = new LedgerService(new MemoryLedgerStore());
+  const users = new UserService(await MemoryUserStore.from([
+    { username: "cw", password: "pw-caseworker", role: "caseworker" },
+    { username: "aud", password: "pw-auditor", role: "auditor" },
+  ]), ledger);
   const app = await buildApp({ jwtSecret: "x".repeat(32), users, ledger });
   const login = async (u: string, p: string) =>
     app.inject({ method: "POST", url: "/v1/auth/login", payload: { username: u, password: p } });
@@ -20,7 +21,7 @@ test("login succeeds/fails; short secret rejected", async () => {
   assert.equal((await login("cw", "pw-caseworker")).statusCode, 200);
   assert.equal((await login("cw", "wrong")).statusCode, 401);
   assert.equal((await login("nobody", "x")).statusCode, 401);
-  await assert.rejects(buildApp({ jwtSecret: "short", users: new Map(), ledger: new LedgerService(new MemoryLedgerStore()) }));
+  await assert.rejects(buildApp({ jwtSecret: "short", users: undefined as never, ledger: new LedgerService(new MemoryLedgerStore()) }));
   assert.ok((await app.inject({ url: "/healthz" })).headers["x-content-type-options"]);
 });
 

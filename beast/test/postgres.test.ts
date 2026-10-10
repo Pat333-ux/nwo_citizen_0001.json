@@ -43,3 +43,20 @@ test("postgres case store: workflow end-to-end, PII encrypted at rest", { skip: 
   assert.equal(raw.rows[0].encrypted_name.includes("Zed"), false);
   await pool.end();
 });
+
+test("postgres user store: create, duplicate, disable, last-admin guard", { skip: !url }, async () => {
+  const { PostgresUserStore, UserService } = await import("../src/server/users.ts");
+  const pool = new pg.Pool({ connectionString: url });
+  const ledger = new LedgerService(new PostgresLedgerStore(pool));
+  const svc = new UserService(new PostgresUserStore(pool), ledger);
+  const name = "pg-" + Math.random().toString(36).slice(2, 10);
+  const u = await svc.create("tester", { username: name, password: "long-enough-password", role: "caseworker" });
+  await assert.rejects(svc.create("tester", { username: name, password: "long-enough-password", role: "auditor" }), /username taken/);
+  assert.ok(await svc.authenticate(name, "long-enough-password"));
+  await svc.setActive("tester", u.id, false);
+  assert.equal(await svc.authenticate(name, "long-enough-password"), undefined);
+  const raw = await pool.query("SELECT password_hash FROM users WHERE id = $1", [u.id]);
+  assert.ok(raw.rows[0].password_hash.startsWith("$argon2id$"));
+  assert.deepEqual(await ledger.verify(), { valid: true });
+  await pool.end();
+});
