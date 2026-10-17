@@ -6,7 +6,7 @@ set -euo pipefail
 gcloud config set project "$PROJECT_ID"
 
 gcloud services enable generativelanguage.googleapis.com maps-backend.googleapis.com \
-  places-backend.googleapis.com secretmanager.googleapis.com
+  places.googleapis.com secretmanager.googleapis.com
 
 for s in GEMINI_API_KEY GOOGLE_MAPS_API_KEY GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET JWT_SECRET DATABASE_URL; do
   gcloud secrets describe "$s" >/dev/null 2>&1 || gcloud secrets create "$s" --replication-policy=automatic
@@ -17,7 +17,7 @@ openssl rand -base64 48 | tr -d '\n' | gcloud secrets versions add JWT_SECRET --
 
 # Maps key restricted to the Maps/Places APIs. Add --allowed-referrers after you have a domain.
 gcloud services api-keys create --display-name="beast-maps" \
-  --api-target=service=maps-backend.googleapis.com --api-target=service=places-backend.googleapis.com
+  --api-target=service=maps-backend.googleapis.com --api-target=service=places.googleapis.com
 
 cat <<'M'
 

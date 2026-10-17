@@ -1,10 +1,10 @@
 export type Role = "caseworker" | "admin" | "auditor";
-export type Permission = "case:review" | "case:read" | "ledger:read" | "kpi:read" | "config:write" | "case:create" | "case:decide" | "user:manage";
+export type Permission = "case:review" | "case:read" | "ledger:read" | "kpi:read" | "config:write" | "case:create" | "case:decide" | "user:manage" | "assistant:use" | "resources:read";
 
 const GRANTS: Record<Role, readonly Permission[]> = {
-  caseworker: ["case:review", "case:read", "case:create", "case:decide", "kpi:read"],
-  admin: ["kpi:read", "config:write", "user:manage"],
-  auditor: ["ledger:read", "kpi:read"],
+  caseworker: ["case:review", "case:read", "case:create", "case:decide", "kpi:read", "assistant:use", "resources:read"],
+  admin: ["kpi:read", "config:write", "user:manage", "assistant:use", "resources:read"],
+  auditor: ["ledger:read", "kpi:read", "resources:read"],
 };
 
 export function can(role: Role, permission: Permission): boolean {

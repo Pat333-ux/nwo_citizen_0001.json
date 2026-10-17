@@ -3,6 +3,9 @@ import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import { authorize, type Permission, type Role } from "../auth/rbac.ts";
 import type { GoogleVerifier } from "../auth/google.ts";
+import { RateLimiter } from "../auth/ratelimit.ts";
+import { CATEGORIES, type Category, type ResourceLocator } from "../integrations/places.ts";
+import type { Assistant } from "../integrations/gemini.ts";
 import { LoginThrottle } from "../auth/throttle.ts";
 import { MIN_PASSWORD_LENGTH, hashPassword, type UserService } from "./users.ts";
 import { auditEvent } from "../audit/audit.ts";
@@ -17,6 +20,10 @@ export interface AppOptions {
   log?: (line: string) => void;
   throttle?: LoginThrottle;
   googleVerifier?: GoogleVerifier;
+  assistant?: Assistant;
+  locator?: ResourceLocator;
+  assistantLimiter?: RateLimiter;
+  resourceLimiter?: RateLimiter;
 }
 
 export { hashPassword };
@@ -164,6 +171,44 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       return reply.code(201).send(rec);
     },
   );
+
+  // Gemini guidance assistant. Server-side only; the message text is never logged or stored.
+  const assistant = opts.assistant;
+  if (assistant) {
+    const limiter = opts.assistantLimiter ?? new RateLimiter(10, 60_000);
+    app.post<{ Body: { message: string } }>("/v1/assistant", {
+      preHandler: guard("assistant:use"),
+      schema: { body: { type: "object", required: ["message"], additionalProperties: false, properties: { message: { type: "string", minLength: 1, maxLength: 1000 } } } },
+    }, async (req, reply) => {
+      const who = self(req);
+      if (!limiter.allow(who)) return reply.code(429).send({ error: "Too many requests. Try again shortly." });
+      await opts.ledger.append(who, "assistant.query", { length: req.body.message.length });
+      try {
+        return { reply: await assistant(req.body.message) };
+      } catch {
+        auditEvent({ actor: who, action: "assistant.query", outcome: "failure" }, log);
+        return reply.code(502).send({ error: "Assistant unavailable" });
+      }
+    });
+  }
+
+  // Resource locator backed by Google Places, called server-side so the Maps key stays secret.
+  const locator = opts.locator;
+  if (locator) {
+    const limiter = opts.resourceLimiter ?? new RateLimiter(30, 60_000);
+    app.get<{ Querystring: { near: string; category: Category } }>("/v1/resources", {
+      preHandler: guard("resources:read"),
+      schema: { querystring: { type: "object", required: ["near", "category"], additionalProperties: false, properties: {
+        near: { type: "string", minLength: 2, maxLength: 100, pattern: "^[A-Za-z0-9 ,.'#-]+$" }, category: { enum: [...CATEGORIES] } } } },
+    }, async (req, reply) => {
+      if (!limiter.allow(self(req))) return reply.code(429).send({ error: "Too many requests. Try again shortly." });
+      try {
+        return await locator(req.query.near.trim(), req.query.category);
+      } catch {
+        return reply.code(502).send({ error: "Resource lookup unavailable" });
+      }
+    });
+  }
 
   const cases = opts.cases;
   if (cases) {

@@ -5,6 +5,8 @@ import pg from "pg";
 import { CaseService } from "./cases.ts";
 import { PostgresCaseStore } from "./caseStore.ts";
 import { createGoogleVerifier } from "../auth/google.ts";
+import { createGeminiAssistant } from "../integrations/gemini.ts";
+import { createResourceLocator } from "../integrations/places.ts";
 import { LedgerService, PostgresLedgerStore } from "../ledger/store.ts";
 
 const secret = process.env.JWT_SECRET;
@@ -31,6 +33,8 @@ const app = await buildApp({
   users,
   ledger,
   ...(process.env.GOOGLE_OAUTH_CLIENT_ID ? { googleVerifier: createGoogleVerifier(process.env.GOOGLE_OAUTH_CLIENT_ID) } : {}),
+  ...(process.env.GEMINI_API_KEY ? { assistant: createGeminiAssistant(process.env.GEMINI_API_KEY, process.env.GEMINI_MODEL) } : {}),
+  ...(process.env.GOOGLE_MAPS_API_KEY ? { locator: createResourceLocator(process.env.GOOGLE_MAPS_API_KEY) } : {}),
   log: (l) => console.log(l),
 });
 await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });

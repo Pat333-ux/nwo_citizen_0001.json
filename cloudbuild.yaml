@@ -1,28 +1,44 @@
 # Builds the BEAST API (./beast) and deploys it to Cloud Run on pushes to main.
-# One-time: gcloud artifacts repositories create beast --repository-format=docker --location=us-central1
-# Secrets (JWT_SECRET, DATABASE_URL, PII_KEY_HEX) must exist in Secret Manager and be
-# readable by the Cloud Run runtime service account. Cloud Build's service account needs
-# roles/run.admin and roles/iam.serviceAccountUser.
+#
+# One-time setup (see docs/cloud-setup.md):
+#   - Artifact Registry repo "beast"; Secret Manager entries; IAM for Cloud Build and the runtime account.
+#   - Apply beast/db/*.sql to the database BEFORE the first deploy (see beast/db/apply.sh).
+#
+# Trigger substitutions (set on the trigger, not in git):
+#   _POVERTY_LEVEL_MONTHLY   required, program-supplied number
+#   _GOOGLE_OAUTH_CLIENT_ID  optional; enables POST /v1/auth/google
+#   _CLOUDSQL_INSTANCE       optional; PROJECT:REGION:INSTANCE, adds the Cloud SQL connection
+#   _SECRETS                 Secret Manager mappings. Default is the required set; once the keys exist, append
+#                            ,GEMINI_API_KEY=GEMINI_API_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest
+#                            to enable POST /v1/assistant and GET /v1/resources.
+#   _AUTH_FLAG               --allow-unauthenticated (default; the API enforces its own login) or --no-allow-unauthenticated
 substitutions:
   _REGION: us-central1
   _SERVICE: beast-backend
   _IMAGE: us-central1-docker.pkg.dev/${PROJECT_ID}/beast/beast-backend
+  _POVERTY_LEVEL_MONTHLY: ''
+  _GOOGLE_OAUTH_CLIENT_ID: ''
+  _CLOUDSQL_INSTANCE: ''
+  _SECRETS: JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,PII_KEY_HEX=PII_KEY_HEX:latest
+  _AUTH_FLAG: --allow-unauthenticated
 steps:
   - name: gcr.io/cloud-builders/docker
     args: ['build', '-t', '${_IMAGE}:${COMMIT_SHA}', 'beast']
   - name: gcr.io/cloud-builders/docker
     args: ['push', '${_IMAGE}:${COMMIT_SHA}']
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - run
-      - deploy
-      - ${_SERVICE}
-      - --image=${_IMAGE}:${COMMIT_SHA}
-      - --region=${_REGION}
-      - --platform=managed
-      - --allow-unauthenticated
-      - --set-secrets=JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,PII_KEY_HEX=PII_KEY_HEX:latest
+      - -c
+      - |
+        set -euo pipefail
+        [ -n "$_POVERTY_LEVEL_MONTHLY" ] || { echo "_POVERTY_LEVEL_MONTHLY substitution is required"; exit 1; }
+        env_vars="POVERTY_LEVEL_MONTHLY=$_POVERTY_LEVEL_MONTHLY"
+        [ -z "$_GOOGLE_OAUTH_CLIENT_ID" ] || env_vars="$env_vars,GOOGLE_OAUTH_CLIENT_ID=$_GOOGLE_OAUTH_CLIENT_ID"
+        extra=()
+        [ -z "$_CLOUDSQL_INSTANCE" ] || extra+=(--add-cloudsql-instances="$_CLOUDSQL_INSTANCE")
+        gcloud run deploy "$_SERVICE" --image="$_IMAGE:$COMMIT_SHA" --region="$_REGION" --platform=managed \
+          "$_AUTH_FLAG" --set-env-vars="$env_vars" --set-secrets="$_SECRETS" "$${extra[@]}"
 images:
   - ${_IMAGE}:${COMMIT_SHA}
 options:

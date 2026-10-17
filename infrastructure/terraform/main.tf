@@ -20,7 +20,7 @@ resource "google_project_service" "apis" {
   for_each = toset([
     "generativelanguage.googleapis.com", # Gemini API
     "maps-backend.googleapis.com",
-    "places-backend.googleapis.com",
+    "places.googleapis.com",
     "secretmanager.googleapis.com",
     "iap.googleapis.com",
   ])
