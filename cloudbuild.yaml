@@ -1,0 +1,29 @@
+# Builds the BEAST API (./beast) and deploys it to Cloud Run on pushes to main.
+# One-time: gcloud artifacts repositories create beast --repository-format=docker --location=us-central1
+# Secrets (JWT_SECRET, DATABASE_URL, PII_KEY_HEX) must exist in Secret Manager and be
+# readable by the Cloud Run runtime service account. Cloud Build's service account needs
+# roles/run.admin and roles/iam.serviceAccountUser.
+substitutions:
+  _REGION: us-central1
+  _SERVICE: beast-backend
+  _IMAGE: us-central1-docker.pkg.dev/${PROJECT_ID}/beast/beast-backend
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_IMAGE}:${COMMIT_SHA}', 'beast']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '${_IMAGE}:${COMMIT_SHA}']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}:${COMMIT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-secrets=JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,PII_KEY_HEX=PII_KEY_HEX:latest
+images:
+  - ${_IMAGE}:${COMMIT_SHA}
+options:
+  dynamic_substitutions: true
