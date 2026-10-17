@@ -6,40 +6,98 @@
     "member": {
       "type": "object",
       "properties": {
-        "full_name": { "type": "string" },
-        "dob": { "type": "string", "format": "date" },
-        "ssn_last_four": { "type": "string", "pattern": "^[0-9]{4}$" },
-        "address": { "type": "string" },
-        "phone": { "type": "string" },
-        "fssa_case_number": { "type": "string" },
-        "wallet_public_key": { "type": "string" }
+        "full_name": {
+          "type": "string"
+        },
+        "dob": {
+          "type": "string",
+          "format": "date"
+        },
+        "ssn_last_four": {
+          "type": "string",
+          "pattern": "^[0-9]{4}$"
+        },
+        "address": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "fssa_case_number": {
+          "type": "string"
+        },
+        "wallet_public_key": {
+          "type": "string"
+        }
       },
-      "required": ["full_name", "dob", "ssn_last_four", "address"]
+      "required": [
+        "full_name",
+        "dob",
+        "ssn_last_four",
+        "address"
+      ]
     },
     "caretaker": {
       "type": "object",
       "properties": {
-        "full_name": { "type": "string" },
-        "relationship": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "address": { "type": "string" },
-        "organization_name": { "type": "string" },
-        "wallet_public_key": { "type": "string" }
+        "full_name": {
+          "type": "string"
+        },
+        "relationship": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "address": {
+          "type": "string"
+        },
+        "organization_name": {
+          "type": "string"
+        },
+        "wallet_public_key": {
+          "type": "string"
+        }
       },
-      "required": ["full_name", "relationship", "phone", "address"]
+      "required": [
+        "full_name",
+        "relationship",
+        "phone",
+        "address"
+      ]
     },
     "dao_entity": {
       "type": "object",
       "properties": {
-        "legal_name": { "type": "string" },
-        "wyoming_id": { "type": "string" },
-        "indiana_registered_agent_name": { "type": "string" },
-        "indiana_registered_agent_address": { "type": "string" },
-        "smart_contract_address": { "type": "string" },
-        "network_chain_id": { "type": "integer" }
+        "legal_name": {
+          "type": "string"
+        },
+        "wyoming_id": {
+          "type": "string"
+        },
+        "indiana_registered_agent_name": {
+          "type": "string"
+        },
+        "indiana_registered_agent_address": {
+          "type": "string"
+        },
+        "smart_contract_address": {
+          "type": "string"
+        },
+        "network_chain_id": {
+          "type": "integer"
+        }
       },
-      "required": ["legal_name", "indiana_registered_agent_name", "indiana_registered_agent_address", "smart_contract_address"]
+      "required": [
+        "legal_name",
+        "indiana_registered_agent_name",
+        "indiana_registered_agent_address",
+        "smart_contract_address"
+      ]
     },
     "authorized_scopes": {
       "type": "array",
@@ -59,11 +117,96 @@
     "effective_dates": {
       "type": "object",
       "properties": {
-        "start_date": { "type": "string", "format": "date" },
-        "end_date": { "type": "string", "format": "date" }
+        "start_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date"
+        }
       },
-      "required": ["start_date", "end_date"]
+      "required": [
+        "start_date",
+        "end_date"
+      ]
+    },
+    "workflow_state": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "FORMS_GENERATED",
+        "PENDING_GOVERNMENT_SUBMISSION",
+        "PAUSED_AWAITING_GOVERNMENT_VERIFICATION",
+        "VERIFIED_APPROVED",
+        "ACTION_REQUIRED_DEFICIENCY",
+        "EXPIRED_RENEWAL_REQUIRED"
+      ],
+      "default": "DRAFT"
+    },
+    "compliance_tracking": {
+      "type": "object",
+      "properties": {
+        "last_audit_timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ic_code_compliance_status": {
+          "type": "string",
+          "enum": [
+            "COMPLIANT",
+            "NON_COMPLIANT",
+            "AUDIT_PENDING"
+          ]
+        },
+        "annual_re_certification_due": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "government_responses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "agency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RECEIVED",
+              "UNDER_REVIEW",
+              "APPROVED",
+              "DENIED",
+              "MORE_INFO_NEEDED"
+            ]
+          },
+          "reference_id": {
+            "type": "string"
+          },
+          "response_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agency",
+          "status",
+          "response_timestamp"
+        ]
+      }
     }
   },
-  "required": ["member", "caretaker", "dao_entity", "authorized_scopes", "effective_dates"]
+  "required": [
+    "member",
+    "caretaker",
+    "dao_entity",
+    "authorized_scopes",
+    "effective_dates"
+  ]
 }
