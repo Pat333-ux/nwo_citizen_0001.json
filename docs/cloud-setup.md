@@ -26,3 +26,7 @@ Deployment currently runs from this repository (`Pat333-ux/nwo_citizen_0001.json
 
 ### Moving to a separate repo later
 Before real member data is handled, move the Beast System 3 folders to a new **private** repo (`beast-system-3.0`) without the `nwo_*.json` and `nwo-citizen0001-*.json` identity files, rewrite the README, then re-point the trigger.
+
+## Google sign-in (API)
+
+Set `GOOGLE_OAUTH_CLIENT_ID` on the Cloud Run service to enable `POST /v1/auth/google`. The frontend obtains a Google ID token (Google Identity Services) and posts `{ "idToken": "..." }`; the API verifies signature, issuer, audience, expiry and verified email, then issues the normal session token. Accounts are not auto-created: an admin links an existing user to a Google email with `POST /v1/users/:id/email`. Apply `beast/db/004_user_email.sql` to the database first.

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import pg from "pg";
 import { CaseService } from "./cases.ts";
 import { PostgresCaseStore } from "./caseStore.ts";
+import { createGoogleVerifier } from "../auth/google.ts";
 import { LedgerService, PostgresLedgerStore } from "../ledger/store.ts";
 
 const secret = process.env.JWT_SECRET;
@@ -29,6 +30,7 @@ const app = await buildApp({
   jwtSecret: secret,
   users,
   ledger,
+  ...(process.env.GOOGLE_OAUTH_CLIENT_ID ? { googleVerifier: createGoogleVerifier(process.env.GOOGLE_OAUTH_CLIENT_ID) } : {}),
   log: (l) => console.log(l),
 });
 await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });

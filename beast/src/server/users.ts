@@ -14,6 +14,7 @@ export interface User {
   role: Role;
   active: boolean;
   createdAt: Date;
+  email?: string;
 }
 
 export type PublicUser = Omit<User, "passwordHash">;
@@ -22,6 +23,7 @@ export interface UserStore {
   insert(u: User): Promise<void>; // throws ConflictError on duplicate username
   findById(id: string): Promise<User | undefined>;
   findByUsername(username: string): Promise<User | undefined>;
+  findByEmail(email: string): Promise<User | undefined>;
   list(): Promise<User[]>;
   update(u: User): Promise<void>;
   countActiveAdmins(): Promise<number>;
@@ -49,6 +51,10 @@ export class MemoryUserStore implements UserStore {
     const u = [...this.#users.values()].find((x) => x.username === username);
     return u && { ...u };
   }
+  async findByEmail(email: string) {
+    const u = [...this.#users.values()].find((x) => x.email === email.toLowerCase());
+    return u && { ...u };
+  }
   async list() {
     return [...this.#users.values()].map((u) => ({ ...u }));
   }
@@ -68,6 +74,7 @@ function rowToUser(w: Record<string, unknown>): User {
     role: w.role as Role,
     active: w.active as boolean,
     createdAt: w.created_at as Date,
+    ...(w.email ? { email: w.email as string } : {}),
   };
 }
 
@@ -95,12 +102,21 @@ export class PostgresUserStore implements UserStore {
     const r = await this.#pool.query("SELECT * FROM users WHERE username = $1", [username]);
     return r.rows[0] ? rowToUser(r.rows[0]) : undefined;
   }
+  async findByEmail(email: string) {
+    const r = await this.#pool.query("SELECT * FROM users WHERE lower(email) = lower($1)", [email]);
+    return r.rows[0] ? rowToUser(r.rows[0]) : undefined;
+  }
   async list() {
     const r = await this.#pool.query("SELECT * FROM users ORDER BY created_at ASC");
     return r.rows.map(rowToUser);
   }
   async update(u: User): Promise<void> {
-    await this.#pool.query("UPDATE users SET password_hash=$2, role=$3, active=$4 WHERE id=$1", [u.id, u.passwordHash, u.role, u.active]);
+    try {
+      await this.#pool.query("UPDATE users SET password_hash=$2, role=$3, active=$4, email=$5 WHERE id=$1", [u.id, u.passwordHash, u.role, u.active, u.email ?? null]);
+    } catch (e) {
+      if ((e as { code?: string }).code === "23505") throw new ConflictError("email already linked");
+      throw e;
+    }
   }
   async countActiveAdmins() {
     const r = await this.#pool.query("SELECT count(*)::int AS n FROM users WHERE role = 'admin' AND active");
@@ -168,6 +184,24 @@ export class UserService {
     user.passwordHash = await hashPassword(password);
     await this.#ledger.append(actor, "user.password_reset", { userId: id });
     await this.#store.update(user);
+  }
+
+  /** Links a Google account email to an existing user; Google sign-in matches on this. */
+  async setEmail(actor: string, id: string, email: string): Promise<PublicUser> {
+    const user = await this.#store.findById(id);
+    if (!user) throw new NotFoundError("user");
+    const normalized = email.toLowerCase();
+    const other = await this.#store.findByEmail(normalized);
+    if (other && other.id !== id) throw new ConflictError("email already linked");
+    user.email = normalized;
+    await this.#ledger.append(actor, "user.email_linked", { userId: id });
+    await this.#store.update(user);
+    return strip(user);
+  }
+
+  async findActiveByEmail(email: string): Promise<User | undefined> {
+    const user = await this.#store.findByEmail(email);
+    return user?.active ? user : undefined;
   }
 
   async changeOwnPassword(username: string, current: string, next: string): Promise<boolean> {

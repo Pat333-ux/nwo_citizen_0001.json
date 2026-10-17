@@ -108,6 +108,14 @@ paths:
     post:
       summary: Create user (admin). Password min 12 chars; role is caseworker, admin or auditor.
       responses: {"201": {description: Created}, "400": {description: Invalid}, "409": {description: Username taken}}
+  /users/{id}/email:
+    post:
+      summary: Link a Google account email to an existing user (admin). Google sign-in matches on this.
+      responses: {"200": {description: OK}, "404": {description: Not found}, "409": {description: Email already linked}}
+  /auth/google:
+    post:
+      summary: Exchange a Google ID token for a session token. Only for active users with a linked verified email; never creates accounts. Enabled when GOOGLE_OAUTH_CLIENT_ID is set.
+      responses: {"200": {description: OK}, "401": {description: Invalid credentials}}
   /users/{id}/disable:
     post:
       summary: Disable a user (admin). Takes effect immediately; cannot disable yourself or the last active admin.

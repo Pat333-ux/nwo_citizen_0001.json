@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import { authorize, type Permission, type Role } from "../auth/rbac.ts";
+import type { GoogleVerifier } from "../auth/google.ts";
 import { LoginThrottle } from "../auth/throttle.ts";
 import { MIN_PASSWORD_LENGTH, hashPassword, type UserService } from "./users.ts";
 import { auditEvent } from "../audit/audit.ts";
@@ -15,6 +16,7 @@ export interface AppOptions {
   cases?: CaseService;
   log?: (line: string) => void;
   throttle?: LoginThrottle;
+  googleVerifier?: GoogleVerifier;
 }
 
 export { hashPassword };
@@ -72,6 +74,23 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     },
   );
 
+  // Google sign-in for accounts an admin has linked to a verified Google email. Never creates accounts.
+  const googleVerifier = opts.googleVerifier;
+  if (googleVerifier) {
+    app.post<{ Body: { idToken: string } }>("/v1/auth/google", {
+      schema: { body: { type: "object", required: ["idToken"], additionalProperties: false, properties: { idToken: { type: "string", maxLength: 4096 } } } },
+    }, async (req, reply) => {
+      const id = await googleVerifier(req.body.idToken);
+      const user = id && (await opts.users.findActiveByEmail(id.email));
+      if (!user) {
+        auditEvent({ actor: "anonymous", action: "auth.google", outcome: "failure" }, log);
+        return reply.code(401).send({ error: "Invalid credentials" });
+      }
+      auditEvent({ actor: user.username, action: "auth.google", outcome: "success" }, log);
+      return { token: app.jwt.sign({ sub: user.username, role: user.role } satisfies TokenPayload) };
+    });
+  }
+
   // Role is read from the user store on every request, so disabling an account
   // or changing a role takes effect immediately, even for unexpired tokens.
   const guard =
@@ -112,6 +131,10 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     await opts.users.resetPassword(self(req), req.params.id, req.body.password);
     return reply.code(204).send();
   });
+  app.post<UP & { Body: { email: string } }>("/v1/users/:id/email", {
+    preHandler: guard("user:manage"),
+    schema: { params: userParam, body: { type: "object", required: ["email"], additionalProperties: false, properties: { email: { type: "string", format: "email", maxLength: 254 } } } },
+  }, async (req) => opts.users.setEmail(self(req), req.params.id, req.body.email));
   app.post<{ Body: { currentPassword: string; newPassword: string } }>("/v1/auth/password", {
     preHandler: guard(null),
     schema: { body: { type: "object", required: ["currentPassword", "newPassword"], additionalProperties: false, properties: { currentPassword: { type: "string", maxLength: 256 }, newPassword: pw } } },
