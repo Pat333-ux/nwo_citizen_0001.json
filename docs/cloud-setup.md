@@ -53,3 +53,16 @@ These are staff-role endpoints. A member-facing role and the Next.js frontend ar
 The API serves a small portal at `/portal` (Google sign-in button when `GOOGLE_OAUTH_CLIENT_ID` is set, password sign-in, KPI dashboard, Gemini assistant, resource locator). It is plain HTML/JS with a strict Content-Security-Policy, so it needs no second service or build step. Add `https://<cloud-run-url>` as an authorized JavaScript origin on the OAuth client (Google Identity Services needs the origin; no redirect URI is required for this flow). Tokens live in page memory only and expire after 15 minutes.
 
 This replaces the planned separate Next.js app for the MVP. Sign-in is staff-role only; a member role is still to be designed.
+
+## Member role
+
+Members are public users who sign in with Google only (no password; password login is refused for the role). Accounts are never self-created:
+1. A caseworker creates and verifies the identity (`POST /v1/identities`, `/verify`).
+2. A caseworker or admin creates the member: `POST /v1/members {username,email,identityId}`. This links the Google email and the single identity (one account per identity).
+3. The member signs in at `/portal` with Google, accepts the consent notice (the assistant is blocked until then), and sees their applications (id and status only).
+
+Members cannot reach KPIs, ledger, user management or case review. Every `/v1/me/...` route derives the identity from the signed-in user, so one member cannot read or act on another's records (404). Member rate limits are stricter (5/min per user and per IP shared across assistant and resource calls). Disabling the user cuts access immediately.
+
+Apply `beast/db/005_member_role.sql` before deploying. **View-only by default:** set `MEMBER_ACTIONS_ENABLED=true` on the service (or the `_MEMBER_ACTIONS_ENABLED` trigger substitution) to let members submit and appeal their own applications. Re-authentication for those actions is not implemented; sessions are 15 minutes.
+
+Before real members use this: counsel must review the consent wording in the portal and how member records are handled (see `docs/privacy.md` and `docs/threat-model.md`).

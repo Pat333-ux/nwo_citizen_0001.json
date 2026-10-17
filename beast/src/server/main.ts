@@ -33,6 +33,7 @@ const app = await buildApp({
   users,
   ledger,
   ...(process.env.GOOGLE_OAUTH_CLIENT_ID ? { googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID, googleVerifier: createGoogleVerifier(process.env.GOOGLE_OAUTH_CLIENT_ID) } : {}),
+  memberActions: process.env.MEMBER_ACTIONS_ENABLED === "true",
   ...(process.env.GEMINI_API_KEY ? { assistant: createGeminiAssistant(process.env.GEMINI_API_KEY, process.env.GEMINI_MODEL) } : {}),
   ...(process.env.GOOGLE_MAPS_API_KEY ? { locator: createResourceLocator(process.env.GOOGLE_MAPS_API_KEY) } : {}),
   log: (l) => console.log(l),

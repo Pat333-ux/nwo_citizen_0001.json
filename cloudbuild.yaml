@@ -7,6 +7,7 @@
 # Trigger substitutions (set on the trigger, not in git):
 #   _POVERTY_LEVEL_MONTHLY   required, program-supplied number
 #   _GOOGLE_OAUTH_CLIENT_ID  optional; enables POST /v1/auth/google
+#   _MEMBER_ACTIONS_ENABLED  optional; 'true' lets members submit/appeal their own applications (default view-only)
 #   _CLOUDSQL_INSTANCE       optional; PROJECT:REGION:INSTANCE, adds the Cloud SQL connection
 #   _SECRETS                 Secret Manager mappings. Default is the required set; once the keys exist, append
 #                            ,GEMINI_API_KEY=GEMINI_API_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest
@@ -18,6 +19,7 @@ substitutions:
   _IMAGE: us-central1-docker.pkg.dev/${PROJECT_ID}/beast/beast-backend
   _POVERTY_LEVEL_MONTHLY: ''
   _GOOGLE_OAUTH_CLIENT_ID: ''
+  _MEMBER_ACTIONS_ENABLED: 'false'
   _CLOUDSQL_INSTANCE: ''
   _SECRETS: JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,PII_KEY_HEX=PII_KEY_HEX:latest
   _AUTH_FLAG: --allow-unauthenticated
@@ -33,7 +35,7 @@ steps:
       - |
         set -euo pipefail
         [ -n "$_POVERTY_LEVEL_MONTHLY" ] || { echo "_POVERTY_LEVEL_MONTHLY substitution is required"; exit 1; }
-        env_vars="POVERTY_LEVEL_MONTHLY=$_POVERTY_LEVEL_MONTHLY"
+        env_vars="POVERTY_LEVEL_MONTHLY=$_POVERTY_LEVEL_MONTHLY,MEMBER_ACTIONS_ENABLED=$_MEMBER_ACTIONS_ENABLED"
         [ -z "$_GOOGLE_OAUTH_CLIENT_ID" ] || env_vars="$env_vars,GOOGLE_OAUTH_CLIENT_ID=$_GOOGLE_OAUTH_CLIENT_ID"
         extra=()
         [ -z "$_CLOUDSQL_INSTANCE" ] || extra+=(--add-cloudsql-instances="$_CLOUDSQL_INSTANCE")

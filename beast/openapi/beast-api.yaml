@@ -116,6 +116,30 @@ paths:
     post:
       summary: Exchange a Google ID token for a session token. Only for active users with a linked verified email; never creates accounts. Enabled when GOOGLE_OAUTH_CLIENT_ID is set.
       responses: {"200": {description: OK}, "401": {description: Invalid credentials}}
+  /members:
+    post:
+      summary: Create a Google-only member account for a verified identity and link the Google email (caseworker or admin).
+      responses: {"201": {description: Created}, "400": {description: Invalid}, "409": {description: Identity not verified, or identity/email/username already linked}}
+  /me:
+    get:
+      summary: Current user (role, consent state). Any authenticated user.
+      responses: {"200": {description: OK}, "403": {description: Forbidden}}
+  /me/consent:
+    post:
+      summary: Member accepts the notice required before using the assistant.
+      responses: {"204": {description: Recorded}, "403": {description: Forbidden}}
+  /me/applications:
+    get:
+      summary: Member's own applications (id and status only). Identity comes from the token, never the client.
+      responses: {"200": {description: OK}, "403": {description: Forbidden}}
+  /me/applications/{id}/submit:
+    post:
+      summary: Member submits own application. Registered only when MEMBER_ACTIONS_ENABLED=true; other members' ids return 404.
+      responses: {"200": {description: OK}, "404": {description: Not found}, "409": {description: Invalid transition}}
+  /me/applications/{id}/appeal:
+    post:
+      summary: Member appeals own denied application. Registered only when MEMBER_ACTIONS_ENABLED=true.
+      responses: {"200": {description: OK}, "404": {description: Not found}, "409": {description: Invalid transition}}
   /users/{id}/disable:
     post:
       summary: Disable a user (admin). Takes effect immediately; cannot disable yourself or the last active admin.

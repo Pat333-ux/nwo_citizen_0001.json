@@ -24,11 +24,15 @@ export const PORTAL_HTML = `<!doctype html>
 </section>
 <section id="app" hidden>
   <p>Signed in. <button id="signout" type="button">Sign out</button></p>
-  <h2>Dashboard</h2><pre id="kpis">Loading...</pre>
-  <h2>Guidance assistant</h2>
+  <section id="staff" hidden><h2>Dashboard</h2><pre id="kpis">Loading...</pre></section>
+  <section id="member" hidden><h2>My applications</h2><ul id="apps"></ul><p id="apps-msg"></p></section>
+  <section id="consent" hidden><h2>Notice and consent</h2>
+    <p>The guidance assistant sends the text you type to Google Gemini to generate an answer. Do not enter names, SSNs, addresses or case numbers. Your messages are not stored by this service. Answers are general guidance, not legal advice.</p>
+    <button id="consent-btn" type="button">I understand and agree</button></section>
+  <section id="assistant"><h2>Guidance assistant</h2>
   <p class="note">Do not enter names, SSNs, addresses or case numbers. This is general guidance, not legal advice.</p>
   <form id="ask-form"><textarea id="q" maxlength="1000" rows="3" required></textarea><button type="submit">Ask</button></form>
-  <pre id="answer"></pre>
+  <pre id="answer"></pre></section>
   <h2>Resource locator</h2>
   <form id="res-form"><input id="near" placeholder="City or ZIP" maxlength="100" required>
   <select id="cat"><option>food</option><option>housing</option><option>healthcare</option><option>childcare</option><option>energy</option><option>employment</option><option>legal</option></select>
@@ -54,14 +58,32 @@ export const PORTAL_JS = `(() => {
   const show = (t) => {
     token = t; $("signin").hidden = !!t; $("app").hidden = !t;
     if (t) {
-      api("/v1/kpis").then((k) => { $("kpis").textContent = JSON.stringify(k, null, 2); }).catch((e) => { $("kpis").textContent = e.message; });
       setTimeout(() => show(null), 14 * 60 * 1000);
+      api("/v1/me").then((me) => {
+        const isMember = me.role === "member";
+        $("member").hidden = !isMember; $("staff").hidden = isMember;
+        $("consent").hidden = !isMember || me.consentAccepted;
+        $("assistant").hidden = isMember && !me.consentAccepted;
+        if (isMember) {
+          api("/v1/me/applications").then((list) => {
+            const ul = $("apps"); ul.replaceChildren();
+            if (!list.length) $("apps-msg").textContent = "No applications yet. Your caseworker will help you start one.";
+            for (const a of list) ul.append(Object.assign(document.createElement("li"), { textContent: "Application " + a.familyId.slice(0, 8) + ": " + a.status }));
+          }).catch((e) => { $("apps-msg").textContent = e.message; });
+        } else {
+          api("/v1/kpis").then((k) => { $("kpis").textContent = JSON.stringify(k, null, 2); }).catch((e) => { $("kpis").textContent = e.message; });
+        }
+      }).catch(() => show(null));
     }
   };
   $("pw-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     try { show((await api("/v1/auth/login", { method: "POST", body: JSON.stringify({ username: $("u").value, password: $("p").value }) })).token); $("p").value = ""; }
     catch (err) { $("signin-msg").textContent = err.message; }
+  });
+  $("consent-btn").addEventListener("click", async () => {
+    try { await api("/v1/me/consent", { method: "POST", body: "{}" }); $("consent").hidden = true; $("assistant").hidden = false; }
+    catch (err) { $("apps-msg").textContent = err.message; }
   });
   $("signout").addEventListener("click", () => show(null));
   $("ask-form").addEventListener("submit", async (e) => {

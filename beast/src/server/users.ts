@@ -15,6 +15,8 @@ export interface User {
   active: boolean;
   createdAt: Date;
   email?: string;
+  identityId?: string;
+  consentAt?: Date;
 }
 
 export type PublicUser = Omit<User, "passwordHash">;
@@ -40,7 +42,10 @@ export class MemoryUserStore implements UserStore {
     return s;
   }
   async insert(u: User): Promise<void> {
-    if ([...this.#users.values()].some((x) => x.username === u.username)) throw new ConflictError("username taken");
+    const all = [...this.#users.values()];
+    if (all.some((x) => x.username === u.username)) throw new ConflictError("username taken");
+    if (u.email && all.some((x) => x.email === u.email)) throw new ConflictError("email already linked");
+    if (u.identityId && all.some((x) => x.identityId === u.identityId)) throw new ConflictError("identity already linked");
     this.#users.set(u.id, { ...u });
   }
   async findById(id: string) {
@@ -75,6 +80,8 @@ function rowToUser(w: Record<string, unknown>): User {
     active: w.active as boolean,
     createdAt: w.created_at as Date,
     ...(w.email ? { email: w.email as string } : {}),
+    ...(w.identity_id ? { identityId: w.identity_id as string } : {}),
+    ...(w.consent_at ? { consentAt: w.consent_at as Date } : {}),
   };
 }
 
@@ -86,11 +93,14 @@ export class PostgresUserStore implements UserStore {
   async insert(u: User): Promise<void> {
     try {
       await this.#pool.query(
-        "INSERT INTO users (id, username, password_hash, role, active, created_at) VALUES ($1,$2,$3,$4,$5,$6)",
-        [u.id, u.username, u.passwordHash, u.role, u.active, u.createdAt],
+        "INSERT INTO users (id, username, password_hash, role, active, created_at, email, identity_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+        [u.id, u.username, u.passwordHash, u.role, u.active, u.createdAt, u.email ?? null, u.identityId ?? null],
       );
     } catch (e) {
-      if ((e as { code?: string }).code === "23505") throw new ConflictError("username taken");
+      const err = e as { code?: string; constraint?: string };
+      if (err.code === "23505") {
+        throw new ConflictError(err.constraint?.includes("email") ? "email already linked" : err.constraint?.includes("identity") ? "identity already linked" : "username taken");
+      }
       throw e;
     }
   }
@@ -112,7 +122,7 @@ export class PostgresUserStore implements UserStore {
   }
   async update(u: User): Promise<void> {
     try {
-      await this.#pool.query("UPDATE users SET password_hash=$2, role=$3, active=$4, email=$5 WHERE id=$1", [u.id, u.passwordHash, u.role, u.active, u.email ?? null]);
+      await this.#pool.query("UPDATE users SET password_hash=$2, role=$3, active=$4, email=$5, consent_at=$6 WHERE id=$1", [u.id, u.passwordHash, u.role, u.active, u.email ?? null, u.consentAt ?? null]);
     } catch (e) {
       if ((e as { code?: string }).code === "23505") throw new ConflictError("email already linked");
       throw e;
@@ -144,7 +154,8 @@ export class UserService {
   async authenticate(username: string, password: string): Promise<User | undefined> {
     const user = await this.#store.findByUsername(username);
     const ok = await argon2.verify(user?.passwordHash ?? (await this.#dummyHash), password).catch(() => false);
-    return user && ok && user.active ? user : undefined;
+    // Members sign in with Google only; they have no usable password.
+    return user && ok && user.active && user.role !== "member" ? user : undefined;
   }
 
   async create(actor: string, n: { username: string; password: string; role: Role }): Promise<PublicUser> {
@@ -184,6 +195,35 @@ export class UserService {
     user.passwordHash = await hashPassword(password);
     await this.#ledger.append(actor, "user.password_reset", { userId: id });
     await this.#store.update(user);
+  }
+
+  /** Creates a Google-only member account linked to one verified identity. Caller must have checked the identity. */
+  async createMember(actor: string, n: { username: string; email: string; identityId: string }): Promise<PublicUser> {
+    const user: User = {
+      id: randomUUID(),
+      username: n.username,
+      // Random, never disclosed: members cannot use password login.
+      passwordHash: await hashPassword(randomUUID() + randomUUID()),
+      role: "member",
+      active: true,
+      createdAt: new Date(),
+      email: n.email.toLowerCase(),
+      identityId: n.identityId,
+    };
+    await this.#store.insert(user);
+    await this.#ledger.append(actor, "member.created", { userId: user.id, identityId: n.identityId });
+    return strip(user);
+  }
+
+  async acceptConsent(username: string): Promise<User> {
+    const user = await this.#store.findByUsername(username);
+    if (!user || !user.active) throw new NotFoundError("user");
+    if (!user.consentAt) {
+      user.consentAt = new Date();
+      await this.#ledger.append(username, "member.consent", { userId: user.id });
+      await this.#store.update(user);
+    }
+    return user;
   }
 
   /** Links a Google account email to an existing user; Google sign-in matches on this. */

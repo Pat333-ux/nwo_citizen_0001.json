@@ -22,6 +22,8 @@ export interface AppOptions {
   throttle?: LoginThrottle;
   googleVerifier?: GoogleVerifier;
   googleClientId?: string;
+  memberActions?: boolean;
+  memberLimiter?: RateLimiter;
   assistant?: Assistant;
   locator?: ResourceLocator;
   assistantLimiter?: RateLimiter;
@@ -174,6 +176,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     },
   );
 
+  const memberLimiter = opts.memberLimiter ?? new RateLimiter(5, 60_000);
+
   // Gemini guidance assistant. Server-side only; the message text is never logged or stored.
   const assistant = opts.assistant;
   if (assistant) {
@@ -183,6 +187,11 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       schema: { body: { type: "object", required: ["message"], additionalProperties: false, properties: { message: { type: "string", minLength: 1, maxLength: 1000 } } } },
     }, async (req, reply) => {
       const who = self(req);
+      const me = await opts.users.store.findByUsername(who);
+      if (me?.role === "member") {
+        if (!me.consentAt) return reply.code(403).send({ error: "Consent required before using the assistant" });
+        if (!memberLimiter.allow(`a:${who}`) || !memberLimiter.allow(`ip:${req.ip}`)) return reply.code(429).send({ error: "Too many requests. Try again shortly." });
+      }
       if (!limiter.allow(who)) return reply.code(429).send({ error: "Too many requests. Try again shortly." });
       await opts.ledger.append(who, "assistant.query", { length: req.body.message.length });
       try {
@@ -203,6 +212,10 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       schema: { querystring: { type: "object", required: ["near", "category"], additionalProperties: false, properties: {
         near: { type: "string", minLength: 2, maxLength: 100, pattern: "^[A-Za-z0-9 ,.'#-]+$" }, category: { enum: [...CATEGORIES] } } } },
     }, async (req, reply) => {
+      const me = await opts.users.store.findByUsername(self(req));
+      if (me?.role === "member" && (!memberLimiter.allow(`r:${self(req)}`) || !memberLimiter.allow(`ip:${req.ip}`))) {
+        return reply.code(429).send({ error: "Too many requests. Try again shortly." });
+      }
       if (!limiter.allow(self(req))) return reply.code(429).send({ error: "Too many requests. Try again shortly." });
       try {
         return await locator(req.query.near.trim(), req.query.category);
@@ -212,8 +225,45 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     });
   }
 
+  // Any authenticated user can see who they are; members also see their consent state.
+  app.get("/v1/me", { preHandler: guard(null) }, async (req) => {
+    const u = await opts.users.store.findByUsername(self(req));
+    return { username: u!.username, role: u!.role, consentAccepted: !!u!.consentAt, memberActions: !!opts.memberActions };
+  });
+  app.post("/v1/me/consent", { preHandler: guard("me:read") }, async (req, reply) => {
+    await opts.users.acceptConsent(self(req));
+    return reply.code(204).send();
+  });
+
   const cases = opts.cases;
   if (cases) {
+    // Member routes: the identity always comes from the signed-in user, never from the client.
+    const memberIdentity = async (req: FastifyRequest): Promise<string> => {
+      const u = await opts.users.store.findByUsername(self(req));
+      if (!u?.identityId) throw new NotFoundError("identity");
+      return u.identityId;
+    };
+    app.get("/v1/me/applications", { preHandler: guard("me:read") }, async (req) => cases.memberApplications(await memberIdentity(req)));
+    if (opts.memberActions) {
+      const idp = { type: "object", properties: { id: { type: "string", maxLength: 64 } } };
+      for (const [path, to] of [["submit", "submitted"], ["appeal", "appealed"]] as const) {
+        app.post<{ Params: { id: string } }>(`/v1/me/applications/:id/${path}`, { preHandler: guard("me:act"), schema: { params: idp } },
+          async (req) => {
+            if (!memberLimiter.allow(`m:${self(req)}`)) throw Object.assign(new Error("Too many requests"), { statusCode: 429 });
+            return cases.memberTransition(self(req), await memberIdentity(req), req.params.id, to);
+          });
+      }
+    }
+    // Staff create a member account for an already-verified identity and link the Google email.
+    app.post<{ Body: { username: string; email: string; identityId: string } }>("/v1/members", {
+      preHandler: guard("member:manage"),
+      schema: { body: { type: "object", required: ["username", "email", "identityId"], additionalProperties: false, properties: {
+        username: { type: "string", pattern: "^[a-z0-9._-]{3,64}$" }, email: { type: "string", format: "email", maxLength: 254 }, identityId: { type: "string", maxLength: 64 } } } },
+    }, async (req, reply) => {
+      if (!(await cases.isVerifiedActive(req.body.identityId))) throw new ConflictError("identity must exist and be verified");
+      return reply.code(201).send(await opts.users.createMember(self(req), req.body));
+    });
+
     const actor = (req: FastifyRequest) => (req.user as TokenPayload).sub;
     const idBody = {
       type: "object", required: ["type", "jurisdiction", "name", "address", "email"], additionalProperties: false,

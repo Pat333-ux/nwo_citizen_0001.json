@@ -126,6 +126,25 @@ export class CaseService {
     return publicView({ ...app, status: to });
   }
 
+  /** True when the identity exists, is active and has been verified by staff. */
+  async isVerifiedActive(identityId: string): Promise<boolean> {
+    const i = await this.#store.getIdentity(identityId);
+    return !!i && i.status === "active" && i.verificationLevel >= 1;
+  }
+
+  /** Member-facing view of own applications: id and status only. */
+  async memberApplications(identityId: string): Promise<{ familyId: string; status: ApplicationStatus }[]> {
+    return (await this.#store.listAppsByIdentity(identityId)).map((a) => ({ familyId: a.familyId, status: a.status }));
+  }
+
+  /** Member action on an application they own; anything else looks like it does not exist. */
+  async memberTransition(actor: string, identityId: string, familyId: string, to: "submitted" | "appealed") {
+    const app = await this.#store.getApp(familyId);
+    if (!app || app.identityId !== identityId) throw new NotFoundError("application");
+    const view = await this.transition(actor, familyId, to);
+    return { familyId: view.familyId, status: view.status };
+  }
+
   /** Recommendations only. A caseworker makes the decision. */
   async recommendations(familyId: string): Promise<Decision[]> {
     const app = await this.#store.getApp(familyId);

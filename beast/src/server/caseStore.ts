@@ -11,6 +11,7 @@ export interface CaseStore {
   insertApp(a: StoredApp): Promise<void>;
   getApp(familyId: string): Promise<StoredApp | undefined>;
   setAppStatus(familyId: string, status: ApplicationStatus): Promise<void>;
+  listAppsByIdentity(identityId: string): Promise<StoredApp[]>;
   /** Aggregates only. */
   counts(): Promise<{ byStatus: Record<string, number>; activeIdentities: number }>;
 }
@@ -39,6 +40,9 @@ export class MemoryCaseStore implements CaseStore {
   async setAppStatus(familyId: string, status: ApplicationStatus): Promise<void> {
     const a = this.#apps.get(familyId);
     if (a) a.status = status;
+  }
+  async listAppsByIdentity(identityId: string) {
+    return [...this.#apps.values()].filter((a) => a.identityId === identityId).map((a) => ({ ...a }));
   }
   async counts() {
     const byStatus: Record<string, number> = {};
@@ -116,6 +120,15 @@ export class PostgresCaseStore implements CaseStore {
 
   async setAppStatus(familyId: string, status: ApplicationStatus): Promise<void> {
     await this.#pool.query("UPDATE applications SET status = $2 WHERE family_id = $1", [familyId, status]);
+  }
+
+  async listAppsByIdentity(identityId: string) {
+    const r = await this.#pool.query("SELECT * FROM applications WHERE identity_id = $1 ORDER BY family_id", [identityId]);
+    return r.rows.map((w) => ({
+      familyId: w.family_id, identityId: w.identity_id, adults: w.adults, children: w.children,
+      monthlyIncome: Number(w.monthly_income), veteranStatus: w.veteran_status,
+      disabilityStatus: w.disability_status, housingStatus: w.housing_status, status: w.status,
+    }) as StoredApp);
   }
 
   async counts() {

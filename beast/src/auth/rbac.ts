@@ -1,9 +1,10 @@
-export type Role = "caseworker" | "admin" | "auditor";
-export type Permission = "case:review" | "case:read" | "ledger:read" | "kpi:read" | "config:write" | "case:create" | "case:decide" | "user:manage" | "assistant:use" | "resources:read";
+export type Role = "caseworker" | "admin" | "auditor" | "member";
+export type Permission = "case:review" | "case:read" | "ledger:read" | "kpi:read" | "config:write" | "case:create" | "case:decide" | "user:manage" | "assistant:use" | "resources:read" | "member:manage" | "me:read" | "me:act";
 
 const GRANTS: Record<Role, readonly Permission[]> = {
-  caseworker: ["case:review", "case:read", "case:create", "case:decide", "kpi:read", "assistant:use", "resources:read"],
-  admin: ["kpi:read", "config:write", "user:manage", "assistant:use", "resources:read"],
+  caseworker: ["case:review", "case:read", "case:create", "case:decide", "kpi:read", "assistant:use", "resources:read", "member:manage"],
+  admin: ["kpi:read", "config:write", "user:manage", "assistant:use", "resources:read", "member:manage"],
+  member: ["me:read", "me:act", "assistant:use", "resources:read"],
   auditor: ["ledger:read", "kpi:read", "resources:read"],
 };
 

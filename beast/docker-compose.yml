@@ -10,6 +10,7 @@ services:
       - ./db/002_cases.sql:/docker-entrypoint-initdb.d/002_cases.sql:ro
       - ./db/003_users.sql:/docker-entrypoint-initdb.d/003_users.sql:ro
       - ./db/004_user_email.sql:/docker-entrypoint-initdb.d/004_user_email.sql:ro
+      - ./db/005_member_role.sql:/docker-entrypoint-initdb.d/005_member_role.sql:ro
   api:
     build: .
     depends_on: [db]
