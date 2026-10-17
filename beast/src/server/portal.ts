@@ -25,6 +25,18 @@ export const PORTAL_HTML = `<!doctype html>
 <section id="app" hidden>
   <p>Signed in. <button id="signout" type="button">Sign out</button></p>
   <section id="staff" hidden><h2>Dashboard</h2><pre id="kpis">Loading...</pre></section>
+  <section id="caseworker" hidden><h2>Onboard a member</h2>
+    <p class="note">Step 1: create the identity. Step 2: verify it after checking the person's documents. Step 3: create their Google-only member account.</p>
+    <form id="idn-form"><label>Full name <input id="i-name" maxlength="256" required></label>
+    <label>Address <input id="i-addr" maxlength="512" required></label>
+    <label>Email (their Google account) <input id="i-email" type="email" maxlength="254" required></label>
+    <label>Jurisdiction <input id="i-jur" value="IN" maxlength="64" required></label>
+    <button type="submit">1. Create identity</button></form>
+    <p>Identity ID: <code id="i-id"></code></p>
+    <button id="verify-btn" type="button" disabled>2. Mark identity verified</button>
+    <form id="mem-form"><label>Member username <input id="m-user" pattern="[a-z0-9._-]{3,64}" maxlength="64" required></label>
+    <button id="mem-btn" type="submit" disabled>3. Create member account</button></form>
+    <p id="cw-msg" role="status"></p></section>
   <section id="member" hidden><h2>My applications</h2><ul id="apps"></ul><p id="apps-msg"></p></section>
   <section id="consent" hidden><h2>Notice and consent</h2>
     <p>The guidance assistant sends the text you type to Google Gemini to generate an answer. Do not enter names, SSNs, addresses or case numbers. Your messages are not stored by this service. Answers are general guidance, not legal advice.</p>
@@ -62,6 +74,7 @@ export const PORTAL_JS = `(() => {
       api("/v1/me").then((me) => {
         const isMember = me.role === "member";
         $("member").hidden = !isMember; $("staff").hidden = isMember;
+        $("caseworker").hidden = me.role !== "caseworker";
         $("consent").hidden = !isMember || me.consentAccepted;
         $("assistant").hidden = isMember && !me.consentAccepted;
         if (isMember) {
@@ -84,6 +97,27 @@ export const PORTAL_JS = `(() => {
   $("consent-btn").addEventListener("click", async () => {
     try { await api("/v1/me/consent", { method: "POST", body: "{}" }); $("consent").hidden = true; $("assistant").hidden = false; }
     catch (err) { $("apps-msg").textContent = err.message; }
+  });
+  let newIdentity = null;
+  const cw = (t) => { $("cw-msg").textContent = t; };
+  $("idn-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api("/v1/identities", { method: "POST", body: JSON.stringify({ type: "citizen", jurisdiction: $("i-jur").value, name: $("i-name").value, address: $("i-addr").value, email: $("i-email").value }) });
+      newIdentity = r.id; $("i-id").textContent = r.id; $("verify-btn").disabled = false; $("mem-btn").disabled = true; cw("Identity created. Verify it once documents are checked.");
+    } catch (err) { cw(err.message); }
+  });
+  $("verify-btn").addEventListener("click", async () => {
+    if (!newIdentity) return;
+    try { await api("/v1/identities/" + encodeURIComponent(newIdentity) + "/verify", { method: "POST", body: "{}" }); $("verify-btn").disabled = true; $("mem-btn").disabled = false; cw("Identity verified."); }
+    catch (err) { cw(err.message); }
+  });
+  $("mem-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      await api("/v1/members", { method: "POST", body: JSON.stringify({ username: $("m-user").value, email: $("i-email").value, identityId: newIdentity }) });
+      cw("Member account created. They can now sign in with Google."); $("mem-btn").disabled = true; $("idn-form").reset(); $("i-id").textContent = ""; newIdentity = null;
+    } catch (err) { cw(err.message); }
   });
   $("signout").addEventListener("click", () => show(null));
   $("ask-form").addEventListener("submit", async (e) => {

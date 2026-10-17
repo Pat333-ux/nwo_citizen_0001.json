@@ -81,6 +81,7 @@ test("portal serves static files with strict CSP and no inline script", async ()
   assert.match(String(page.headers["content-security-policy"]), /script-src 'self' https:\/\/accounts\.google\.com\/gsi\/client/);
   assert.equal(/<script(?![^>]*src=)/.test(page.body), false);
   assert.equal((await app.inject({ method: "GET", url: "/portal/app.js" })).statusCode, 200);
+  assert.match(page.body, /id="caseworker"/);
   assert.equal((await app.inject({ method: "GET", url: "/portal/app.css" })).statusCode, 200);
   assert.equal((await app.inject({ method: "GET", url: "/portal/config" })).json().googleClientId, "cid.apps.googleusercontent.com");
 });

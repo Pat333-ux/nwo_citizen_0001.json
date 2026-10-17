@@ -66,3 +66,7 @@ Members cannot reach KPIs, ledger, user management or case review. Every `/v1/me
 Apply `beast/db/005_member_role.sql` before deploying. **View-only by default:** set `MEMBER_ACTIONS_ENABLED=true` on the service (or the `_MEMBER_ACTIONS_ENABLED` trigger substitution) to let members submit and appeal their own applications. Re-authentication for those actions is not implemented; sessions are 15 minutes.
 
 Before real members use this: counsel must review the consent wording in the portal and how member records are handled (see `docs/privacy.md` and `docs/threat-model.md`).
+
+## Onboarding a member from the portal
+
+Caseworkers (not admins) see an **Onboard a member** panel in `/portal`: create the identity, mark it verified after checking documents, then create the Google-only member account. No raw API calls are needed. Verify identity in person or from documents before step 2.
