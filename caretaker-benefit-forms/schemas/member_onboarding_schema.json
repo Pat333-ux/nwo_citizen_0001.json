@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MemberCaretakerOnboardingPayload",
+  "type": "object",
+  "properties": {
+    "member": {
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string" },
+        "dob": { "type": "string", "format": "date" },
+        "ssn_last_four": { "type": "string", "pattern": "^[0-9]{4}$" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "fssa_case_number": { "type": "string" },
+        "wallet_public_key": { "type": "string" }
+      },
+      "required": ["full_name", "dob", "ssn_last_four", "address"]
+    },
+    "caretaker": {
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string" },
+        "relationship": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "address": { "type": "string" },
+        "organization_name": { "type": "string" },
+        "wallet_public_key": { "type": "string" }
+      },
+      "required": ["full_name", "relationship", "phone", "address"]
+    },
+    "dao_entity": {
+      "type": "object",
+      "properties": {
+        "legal_name": { "type": "string" },
+        "wyoming_id": { "type": "string" },
+        "indiana_registered_agent_name": { "type": "string" },
+        "indiana_registered_agent_address": { "type": "string" },
+        "smart_contract_address": { "type": "string" },
+        "network_chain_id": { "type": "integer" }
+      },
+      "required": ["legal_name", "indiana_registered_agent_name", "indiana_registered_agent_address", "smart_contract_address"]
+    },
+    "authorized_scopes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "INDIANA_FSSA_MEDICAID",
+          "INDIANA_DFR_SNAP_TANF",
+          "HUD_HOUSING_ASSISTANCE",
+          "INDIANA_EAP_LIHEAP",
+          "INDIANA_CCDF_CHILDCARE",
+          "INDIANA_VOCATIONAL_REHAB",
+          "WYOMING_DAO_PRIVATE_GOV_EXECUTION"
+        ]
+      }
+    },
+    "effective_dates": {
+      "type": "object",
+      "properties": {
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" }
+      },
+      "required": ["start_date", "end_date"]
+    }
+  },
+  "required": ["member", "caretaker", "dao_entity", "authorized_scopes", "effective_dates"]
+}

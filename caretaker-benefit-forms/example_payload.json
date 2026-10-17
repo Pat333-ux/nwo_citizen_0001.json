@@ -1,0 +1,7 @@
+{
+  "member": { "full_name": "Jane Doe", "dob": "1980-01-31", "ssn_last_four": "1234", "address": "1 Main St, Indianapolis, IN", "fssa_case_number": "0000000", "wallet_public_key": "0xMEMBER" },
+  "caretaker": { "full_name": "John Roe", "relationship": "Friend", "phone": "555-0100", "email": "john@example.com", "address": "2 Main St, Indianapolis, IN", "wallet_public_key": "0xCARETAKER" },
+  "dao_entity": { "legal_name": "Example DAO LLC", "wyoming_id": "WY-0000", "indiana_registered_agent_name": "Agent Co", "indiana_registered_agent_address": "3 Main St, Indianapolis, IN", "smart_contract_address": "0xCONTRACT", "network_chain_id": 1 },
+  "authorized_scopes": ["INDIANA_CCDF_CHILDCARE", "INDIANA_VOCATIONAL_REHAB", "WYOMING_DAO_PRIVATE_GOV_EXECUTION"],
+  "effective_dates": { "start_date": "2026-01-01", "end_date": "2027-01-01" }
+}

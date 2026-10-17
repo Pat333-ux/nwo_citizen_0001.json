@@ -1,0 +1,19 @@
+{
+  "rules": [
+    { "scope": "INDIANA_FSSA_MEDICAID", "template_path": "templates/indiana_fssa/IN_FSSA_Auth_Release_54621.md", "output_filename": "IN_FSSA_Auth_Release_{{member.ssn_last_four}}.pdf" },
+    { "scope": "INDIANA_FSSA_MEDICAID", "template_path": "templates/indiana_fssa/IN_DFR_Health_Coverage_55366.md", "output_filename": "IN_StateForm_55366_{{member.ssn_last_four}}.pdf" },
+    { "scope": "INDIANA_DFR_SNAP_TANF", "template_path": "templates/indiana_fssa/IN_SNAP_TANF_Caretaker_Release.md", "output_filename": "IN_SNAP_TANF_Release_{{member.ssn_last_four}}.pdf" },
+    { "scope": "HUD_HOUSING_ASSISTANCE", "template_path": "templates/housing/HUD_9887_Authorization.md", "output_filename": "HUD_9887_Authorization_{{member.ssn_last_four}}.pdf" },
+    { "scope": "HUD_HOUSING_ASSISTANCE", "template_path": "templates/housing/IN_IHCDA_Housing_Release.md", "output_filename": "Housing_Assistance_Release_{{member.ssn_last_four}}.pdf" },
+    { "scope": "INDIANA_EAP_LIHEAP", "template_path": "templates/energy_and_utility/IN_EAP_LIHEAP_Release_58249.md", "output_filename": "Energy_Assistance_Release_{{member.ssn_last_four}}.pdf" },
+    { "scope": "INDIANA_EAP_LIHEAP", "template_path": "templates/energy_and_utility/IN_EAP_Zero_Income_Affidavit.md", "output_filename": "Energy_Zero_Income_Affidavit_{{member.ssn_last_four}}.pdf" },
+    { "scope": "INDIANA_CCDF_CHILDCARE", "template_path": "templates/childcare_and_vocrhab/IN_CCDF_Childcare_Auth_Release.md", "output_filename": "CCDF_Childcare_Release_{{member.ssn_last_four}}.pdf" },
+    { "scope": "INDIANA_VOCATIONAL_REHAB", "template_path": "templates/childcare_and_vocrhab/IN_Vocational_Rehab_Consent.md", "output_filename": "Vocational_Rehab_Release_{{member.ssn_last_four}}.pdf" },
+    { "scope": "WYOMING_DAO_PRIVATE_GOV_EXECUTION", "template_path": "templates/wyoming_dao_indiana/WY_DAO_IN_Foreign_Registration.md", "output_filename": "Wyoming_DAO_Indiana_Registration_{{dao_entity.wyoming_id}}.pdf" },
+    { "scope": "WYOMING_DAO_PRIVATE_GOV_EXECUTION", "template_path": "templates/wyoming_dao_indiana/DAO_Caretaker_Operating_Addendum.md", "output_filename": "DAO_Operating_Addendum_{{member.ssn_last_four}}.pdf" },
+    { "scope": "WYOMING_DAO_PRIVATE_GOV_EXECUTION", "template_path": "templates/wyoming_dao_indiana/Web3_Wallet_Signature_Addendum.md", "output_filename": "DAO_Web3_Wallet_Addendum_{{member.ssn_last_four}}.pdf" }
+  ],
+  "always": [
+    { "template_path": "templates/general/Universal_Caretaker_POA_Release.md", "output_filename": "Universal_Caretaker_POA_{{member.ssn_last_four}}.pdf" }
+  ]
+}
