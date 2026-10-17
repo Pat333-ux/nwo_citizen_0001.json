@@ -24,4 +24,4 @@ Current Status: Pre-Alpha
 
 ## Layout
 
-See `docs/architecture.md` and `docs/roadmap.md`. Copy `.env.example` to `.env` and never commit it. See `SECURITY.md`.
+See `docs/architecture.md` and `docs/roadmap.md`. Deployment: see `docs/cloud-setup.md` (Cloud Build trigger using `cloudbuild.yaml`). Copy `.env.example` to `.env` and never commit it. See `SECURITY.md`.
