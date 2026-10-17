@@ -6,6 +6,7 @@ import type { GoogleVerifier } from "../auth/google.ts";
 import { RateLimiter } from "../auth/ratelimit.ts";
 import { CATEGORIES, type Category, type ResourceLocator } from "../integrations/places.ts";
 import type { Assistant } from "../integrations/gemini.ts";
+import { PORTAL_CSP, PORTAL_CSS, PORTAL_HTML, PORTAL_JS } from "./portal.ts";
 import { LoginThrottle } from "../auth/throttle.ts";
 import { MIN_PASSWORD_LENGTH, hashPassword, type UserService } from "./users.ts";
 import { auditEvent } from "../audit/audit.ts";
@@ -20,6 +21,7 @@ export interface AppOptions {
   log?: (line: string) => void;
   throttle?: LoginThrottle;
   googleVerifier?: GoogleVerifier;
+  googleClientId?: string;
   assistant?: Assistant;
   locator?: ResourceLocator;
   assistantLimiter?: RateLimiter;
@@ -260,6 +262,14 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   // Read-only aggregate dashboard. The page holds no data; it calls /v1/kpis with a user token.
   app.get("/dashboard", async (_req, reply) => reply.type("text/html; charset=utf-8").send(DASHBOARD_HTML));
   app.get("/dashboard/app.js", async (_req, reply) => reply.type("application/javascript; charset=utf-8").send(DASHBOARD_JS));
+
+  // Member portal: static files with a strict CSP; all data comes from authenticated API calls.
+  const portal = (type: string, body: string) => async (_req: FastifyRequest, reply: import("fastify").FastifyReply) =>
+    reply.header("content-security-policy", PORTAL_CSP).type(type).send(body);
+  app.get("/portal", portal("text/html; charset=utf-8", PORTAL_HTML));
+  app.get("/portal/app.js", portal("application/javascript; charset=utf-8", PORTAL_JS));
+  app.get("/portal/app.css", portal("text/css; charset=utf-8", PORTAL_CSS));
+  app.get("/portal/config", async () => ({ googleClientId: opts.googleClientId ?? null }));
 
   app.get("/healthz", async () => ({ ok: true }));
   return app;

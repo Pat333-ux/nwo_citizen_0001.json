@@ -73,3 +73,14 @@ test("places client maps results, caches, and endpoint validates input", async (
   assert.equal((await get("aud", "near=Indianapolis&category=drugs")).statusCode, 400);
   assert.equal((await get("aud", "near=%3Cscript%3E&category=food")).statusCode, 400);
 });
+
+test("portal serves static files with strict CSP and no inline script", async () => {
+  const { app } = await setup({ googleClientId: "cid.apps.googleusercontent.com" });
+  const page = await app.inject({ method: "GET", url: "/portal" });
+  assert.equal(page.statusCode, 200);
+  assert.match(String(page.headers["content-security-policy"]), /script-src 'self' https:\/\/accounts\.google\.com\/gsi\/client/);
+  assert.equal(/<script(?![^>]*src=)/.test(page.body), false);
+  assert.equal((await app.inject({ method: "GET", url: "/portal/app.js" })).statusCode, 200);
+  assert.equal((await app.inject({ method: "GET", url: "/portal/app.css" })).statusCode, 200);
+  assert.equal((await app.inject({ method: "GET", url: "/portal/config" })).json().googleClientId, "cid.apps.googleusercontent.com");
+});

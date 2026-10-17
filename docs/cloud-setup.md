@@ -47,3 +47,9 @@ Once the base deploy works and the keys are stored in Secret Manager, append `,G
 - `GET /v1/resources?near=...&category=food|housing|healthcare|childcare|energy|employment|legal`: Google Places (New) is called server-side, results cached 10 minutes, 30/min per user. Requires the Places API (New), `places.googleapis.com`, which the setup script and Terraform enable.
 
 These are staff-role endpoints. A member-facing role and the Next.js frontend are not built yet.
+
+## Member portal
+
+The API serves a small portal at `/portal` (Google sign-in button when `GOOGLE_OAUTH_CLIENT_ID` is set, password sign-in, KPI dashboard, Gemini assistant, resource locator). It is plain HTML/JS with a strict Content-Security-Policy, so it needs no second service or build step. Add `https://<cloud-run-url>` as an authorized JavaScript origin on the OAuth client (Google Identity Services needs the origin; no redirect URI is required for this flow). Tokens live in page memory only and expire after 15 minutes.
+
+This replaces the planned separate Next.js app for the MVP. Sign-in is staff-role only; a member role is still to be designed.
