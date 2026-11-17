@@ -1,12 +1,10 @@
-# Local development database for the separately PM2-managed API.
+# Local development only. Replace placeholder secrets via environment/secret manager.
 services:
   db:
     image: postgres:16
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: beast
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - beast-postgres-data:/var/lib/postgresql/data
       - ./db/001_ledger.sql:/docker-entrypoint-initdb.d/001_ledger.sql:ro
@@ -19,7 +17,6 @@ services:
       retries: 12
       start_period: 10s
 
-  # Optional all-in-Docker API service. Use either this or PM2, not both on the same host/port.
   api:
     build: .
     depends_on:
@@ -32,6 +29,12 @@ services:
       PII_KEY_HEX: ${PII_KEY_HEX:?set PII_KEY_HEX (64 hex chars)}
       POVERTY_LEVEL_MONTHLY: ${POVERTY_LEVEL_MONTHLY:?set program poverty level}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   beast-postgres-data:

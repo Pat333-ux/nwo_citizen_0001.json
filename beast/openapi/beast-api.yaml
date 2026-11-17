@@ -42,6 +42,16 @@ components:
 security:
   - bearer: []
 paths:
+  /healthz:
+    get:
+      summary: Liveness check
+      security: []
+      responses: {"200": {description: OK}}
+  /auth/login:
+    post:
+      summary: Authenticate and issue a JWT
+      security: []
+      responses: {"200": {description: Authenticated}, "401": {description: Invalid credentials}, "429": {description: Throttled}}
   /ledger/records:
     get:
       summary: List ledger records (auditor role)
@@ -97,6 +107,16 @@ paths:
       summary: denied to appealed
       parameters: [{name: id, in: path, required: true, schema: {type: string}}]
       responses: {"200": {description: OK}, "409": {description: Invalid transition}}
+  /applications/{id}/recommendations:
+    get:
+      summary: Rules-engine recommendations; human review required
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        "200":
+          description: Recommendations
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/Decision"}}
   /ledger/root:
     get:
       summary: Merkle root of ledger hashes (auditor), intended for external anchoring; contains no PII
@@ -129,7 +149,7 @@ paths:
       responses: {"204": {description: Changed}, "401": {description: Wrong current password}}
   /dashboard:
     get:
-      summary: Read-only aggregate dashboard page (no data in the page; it calls /kpis with a user token)
+      summary: Read-only aggregate dashboard page
       security: []
       responses: {"200": {description: HTML}}
   /kpis:
@@ -141,14 +161,3 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Kpis"}
-  /applications/{id}/decisions:
-    get:
-      summary: Rules engine recommendations (caseworker role); human review required
-      parameters:
-        - {name: id, in: path, required: true, schema: {type: string}}
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {type: array, items: {$ref: "#/components/schemas/Decision"}}
