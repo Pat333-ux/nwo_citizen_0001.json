@@ -28,9 +28,11 @@ if [[ ! "$PII_KEY_HEX" =~ ^[[:xdigit:]]{64}$ ]]; then
   echo "[ERROR] PII_KEY_HEX must contain exactly 64 hexadecimal characters." >&2
   exit 1
 fi
-if [[ ! "$POVERTY_LEVEL_MONTHLY" =~ ^[0-9]+([.][0-9]+)?$ ]] || awk "BEGIN { exit !($POVERTY_LEVEL_MONTHLY > 0) }"; then
-  :
-else
+if [[ ! "$POVERTY_LEVEL_MONTHLY" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  echo "[ERROR] POVERTY_LEVEL_MONTHLY must be a positive number." >&2
+  exit 1
+fi
+if ! awk -v value="$POVERTY_LEVEL_MONTHLY" 'BEGIN { exit !(value + 0 > 0) }'; then
   echo "[ERROR] POVERTY_LEVEL_MONTHLY must be a positive number." >&2
   exit 1
 fi
