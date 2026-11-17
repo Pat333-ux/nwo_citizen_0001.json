@@ -5,6 +5,8 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: beast
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - beast-postgres-data:/var/lib/postgresql/data
       - ./db/001_ledger.sql:/docker-entrypoint-initdb.d/001_ledger.sql:ro
