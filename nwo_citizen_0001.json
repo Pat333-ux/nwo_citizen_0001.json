@@ -4,5 +4,39 @@
   "wallet": "0cad6a0d-1462-47eb-853e-17521d57322e",
   "status": "active",
   "lucricity": "pending_mint",
-  "beast_system_module": "identity.registered"
+  "beast_system_module": "identity.registered",
+  "defi_triggers": {
+    "enabled": false,
+    "events": ["defi.exchange.triggered"],
+    "require_finality": true,
+    "idempotency_template": "${chainId}:${txHash}:${logIndex}:${citizen_id}",
+    "gates_required": [
+      "emergency_circuit_breaker_clear",
+      "constitutional_policy_guard_approved",
+      "pii_scrubber_applied",
+      "citizen_consent_verified"
+    ]
+  },
+  "benefits_orchestration": {
+    "autoSubmit": false,
+    "mode": "staged_eligibility_and_prefill",
+    "target_domains": [
+      "resident_portal",
+      "civic_aid",
+      "fssa_indiana",
+      "senior_benefits",
+      "care_automation",
+      "education_fafsa",
+      "credit_repair",
+      "home_loan",
+      "grants"
+    ],
+    "audit_required": true
+  },
+  "interface_assumptions_to_verify": {
+    "div-19-emergency-response": "Expose read/check state for global pause or active circuit breaker.",
+    "beast3-constitutional-policy-guard": "Validate action payload and treasury/governance rules before fan-out.",
+    "beast3-pii-scrubber": "Strip or pseudonymize sensitive intake fields before cross-repo dispatch.",
+    "beast3-division-event-router": "Accept normalized event envelopes with idempotency keys."
+  }
 }
